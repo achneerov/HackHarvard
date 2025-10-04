@@ -18,7 +18,6 @@ db.serialize(() => {
 
   db.run(`DROP TABLE IF EXISTS Rules`);
   db.run(`DROP TABLE IF EXISTS MFAEvents`);
-  db.run(`DROP TABLE IF EXISTS MerchantApiKeys`);
   db.run(`DROP TABLE IF EXISTS Merchants`);
   db.run(`DROP TABLE IF EXISTS Users`);
   db.run(`DELETE FROM sqlite_sequence`);
@@ -43,15 +42,7 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
-      merchantApiKey TEXT UNIQUE,
-      FOREIGN KEY (merchantApiKey) REFERENCES MerchantApiKeys(apiKey)
-    )
-  `);
-
-  // MerchantApiKeys table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS MerchantApiKeys (
-      apiKey TEXT PRIMARY KEY
+      merchantApiKey TEXT UNIQUE NOT NULL
     )
   `);
 
@@ -66,7 +57,7 @@ db.serialize(() => {
       status INTEGER CHECK(status IN (0, 1, 2, 3)),
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (cchash) REFERENCES Users(cchash),
-      FOREIGN KEY (merchantApiKey) REFERENCES MerchantApiKeys(apiKey)
+      FOREIGN KEY (merchantApiKey) REFERENCES Merchants(merchantApiKey)
     )
   `);
 
@@ -82,21 +73,11 @@ db.serialize(() => {
       timeEnd TEXT,
       condition TEXT CHECK(condition IN ('EQUAL', 'GREATER', 'LESS_THAN', 'NOT', 'IS')),
       successStatus INTEGER CHECK(successStatus IN (0, 1, 2)),
-      FOREIGN KEY (merchantApiKey) REFERENCES MerchantApiKeys(apiKey)
+      FOREIGN KEY (merchantApiKey) REFERENCES Merchants(merchantApiKey)
     )
   `);
 
   console.log("Database tables created successfully!");
-
-  // Insert merchant API key
-  db.run(
-    `INSERT INTO MerchantApiKeys (apiKey) VALUES (?)`,
-    ["merchant_key_abc123"],
-    function (err) {
-      if (err) console.error("Error inserting merchant API key:", err);
-      else console.log("✓ Inserted merchant API key");
-    }
-  );
 
   // Insert merchant
   db.run(
@@ -304,19 +285,19 @@ db.serialize(() => {
       successStatus: 0,
     },
 
-    // High priority: Decline transactions over $10,000
+    // High priority: Require MFA for transactions over $50,000
     {
       merchantApiKey: "merchant_key_abc123",
       priority: 10,
-      amount: 10000,
+      amount: 50000,
       location: null,
       timeStart: null,
       timeEnd: null,
       condition: "GREATER",
-      successStatus: 0,
+      successStatus: 2,
     },
 
-    // Medium priority: Require MFA for transactions between $1,000 - $10,000
+    // Medium priority: Require MFA for transactions between $1,000 - $50,000
     {
       merchantApiKey: "merchant_key_abc123",
       priority: 8,

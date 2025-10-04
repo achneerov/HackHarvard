@@ -204,7 +204,7 @@ app.post("/api/processTransaction", async (req, res) => {
     // Validate merchant API key
     const merchantExists = await new Promise((resolve, reject) => {
       db.get(
-        "SELECT * FROM MerchantApiKeys WHERE apiKey = ?",
+        "SELECT * FROM Merchants WHERE merchantApiKey = ?",
         [merchantApiKey],
         (err, row) => {
           if (err) reject(err);
@@ -455,6 +455,33 @@ app.post("/api/requestCode", async (req, res) => {
       `[AUTH CODE][SIGNUP] Pending user: ${hashCC}, Method: ${authMode}, Code: ${code}`
     );
 
+    // Send code via email for new sign-ups
+    if (authMode === AUTH_METHODS.email && email) {
+      console.log(`[EMAIL][SIGNUP] Sending code to ${email}: ${code}`);
+      try {
+        const msg = {
+          to: email,
+          from: "Veritas@mystaticsite.com",
+          subject: "Your AuthPay Verification Code - Sign Up",
+          text: `Your verification code is: ${code}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+              <h2>Welcome to AuthPay!</h2>
+              <p>Your verification code is:</p>
+              <h1 style="color: #4F46E5; letter-spacing: 5px;">${code}</h1>
+              <p>This code will expire in 10 minutes.</p>
+              <p style="color: #6B7280; font-size: 12px;">If you didn't request this code, please ignore this email.</p>
+            </div>
+          `,
+        };
+        await sgMail.send(msg);
+        console.log(`[EMAIL][SIGNUP] Successfully sent code to ${email}`);
+      } catch (emailError) {
+        console.error(`[EMAIL][SIGNUP] Failed to send email:`, emailError);
+        // Don't fail the request if email fails, code is still stored
+      }
+    }
+
     res.json({
       status: STATUS.SUCCESS,
       message: "Sign-up code sent successfully",
@@ -577,7 +604,7 @@ app.post("/api/registerUser", async (req, res) => {
   try {
     const merchantExists = await new Promise((resolve, reject) => {
       db.get(
-        "SELECT 1 FROM MerchantApiKeys WHERE apiKey = ?",
+        "SELECT 1 FROM Merchants WHERE merchantApiKey = ?",
         [merchantApiKey],
         (err, row) => {
           if (err) reject(err);
@@ -628,6 +655,13 @@ app.post("/api/registerUser", async (req, res) => {
     const resolvedLocation =
       location || pendingUser?.location || existingUser?.signUpLocation || null;
 
+    console.log('[AuthPay] registerUser location resolution:', {
+      providedLocation: location,
+      pendingUserLocation: pendingUser?.location,
+      existingUserLocation: existingUser?.signUpLocation,
+      resolvedLocation
+    });
+
     await new Promise((resolve, reject) => {
       db.run(
         `INSERT INTO Users (cchash, email, phone, otp, biometric, hardwareToken, authCode, signUpLocation)
@@ -658,6 +692,12 @@ app.post("/api/registerUser", async (req, res) => {
     }
     const transactionLocation = resolvedLocation;
     const userHomeLocation = userRecord?.signUpLocation || resolvedLocation;
+
+    console.log('[AuthPay] registerUser rule evaluation:', {
+      transactionLocation,
+      userHomeLocation,
+      amount: numericAmount
+    });
 
     const ruleStatus = await evaluateRules(
       merchantApiKey,
