@@ -147,9 +147,9 @@ function RulesManagement() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <h2 className="text-xl font-bold text-gray-900">Merchant Dashboard</h2>
           <div className="flex gap-2">
-            <button onClick={() => navigate('/dashboard')} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">Dashboard</button>
-            <button onClick={() => navigate('/rules')} className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700">Rules</button>
-            <button onClick={handleLogout} className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">Logout</button>
+            <button onClick={() => navigate('/dashboard')} className="px-6 py-2.5 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">Dashboard</button>
+            <button onClick={() => navigate('/rules')} className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">Rules</button>
+            <button onClick={handleLogout} className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 hover:shadow-lg transition-all">Logout</button>
           </div>
         </div>
       </nav>
