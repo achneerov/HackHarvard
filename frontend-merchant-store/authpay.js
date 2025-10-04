@@ -1,4 +1,8 @@
-import { waitForAuth, webhookClient, verifyMFA } from './js/mockBackend.js';
+import {
+  waitForAuth as defaultWaitForAuth,
+  webhookClient as defaultWebhookClient,
+  verifyMFA as defaultVerifyMFA,
+} from './js/mockBackend.js';
 
 const ensureAuthPayModal = () => {
   if (window.AuthPayModal) return window.AuthPayModal;
@@ -241,6 +245,37 @@ const ensureAuthPayModal = () => {
     }
   };
 
+  const api = {
+    open({ methods, onRequestCode, onSubmitCode, onCancel }) {
+      methodSelect.innerHTML = '';
+      methods.forEach((method) => {
+        const option = document.createElement('option');
+        option.value = method.id;
+        option.textContent = method.label;
+        methodSelect.appendChild(option);
+      });
+
+      currentHandlers = { onRequestCode, onSubmitCode, onCancel };
+      codeInput.value = '';
+      clearStatus();
+      overlay.classList.add('is-visible');
+      overlay.setAttribute('aria-hidden', 'false');
+      dialog.focus();
+    },
+    close() {
+      closeOverlay();
+    },
+    setStatus(type, message) {
+      if (!message) {
+        clearStatus();
+        return;
+      }
+      statusMessage.textContent = message;
+      statusMessage.setAttribute('data-type', type);
+      statusMessage.classList.add('is-visible');
+    },
+  };
+
   requestButton.addEventListener('click', () => {
     if (!currentHandlers?.onRequestCode) return;
     const method = methodSelect.value;
@@ -251,7 +286,7 @@ const ensureAuthPayModal = () => {
     if (!currentHandlers?.onSubmitCode) return;
     const code = codeInput.value.trim();
     if (code.length !== 6) {
-      window.AuthPayModal.setStatus('failure', 'Please enter the 6-digit code.');
+      api.setStatus('failure', 'Please enter the 6-digit code.');
       return;
     }
     runSafely(submitButton, () => currentHandlers.onSubmitCode(code));
@@ -283,95 +318,194 @@ const ensureAuthPayModal = () => {
     }
   });
 
-  const open = ({ methods, onRequestCode, onSubmitCode, onCancel }) => {
-    methodSelect.innerHTML = '';
-    methods.forEach((method) => {
-      const option = document.createElement('option');
-      option.value = method.id;
-      option.textContent = method.label;
-      methodSelect.appendChild(option);
-    });
-
-    currentHandlers = { onRequestCode, onSubmitCode, onCancel };
-    codeInput.value = '';
-    clearStatus();
-    overlay.classList.add('is-visible');
-    overlay.setAttribute('aria-hidden', 'false');
-    dialog.focus();
-  };
-
-  const close = () => {
-    closeOverlay();
-  };
-
-  const setStatus = (type, message) => {
-    if (!message) {
-      clearStatus();
-      return;
-    }
-    statusMessage.textContent = message;
-    statusMessage.setAttribute('data-type', type);
-    statusMessage.classList.add('is-visible');
-  };
-
-  const api = { open, close, setStatus };
   window.AuthPayModal = api;
   return api;
 };
 
-const enableAuthPay = () => {
-  ensureAuthPayModal();
-  const fallbackProcess = window.process_payment;
+const resolveElement = (target) => {
+  if (!target) return null;
+  if (typeof target === 'string') return document.querySelector(target);
+  return target;
+};
 
-  const orchestrateAuthPay = async (payload, ui) => {
-    ui.showStatus('info', 'Routing through AuthPay orchestration...');
-    ui.toggleProcessing(true);
+const toClassList = (value) => {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === 'string') return value.split(/\s+/).filter(Boolean);
+  return [];
+};
 
-    await waitForAuth();
-    const response = await webhookClient.processTransaction(payload);
+const createDefaultUI = ({
+  form,
+  statusElement,
+  hiddenClass = 'hidden',
+  baseStatusClass = '',
+  statusClasses = {},
+} = {}) => {
+  const modal = ensureAuthPayModal();
+  const formEl = resolveElement(form);
+  const statusEl = resolveElement(statusElement);
+  const baseClasses = toClassList(baseStatusClass);
+  const statusClassMap = {
+    info: toClassList(statusClasses.info),
+    success: toClassList(statusClasses.success),
+    failure: toClassList(statusClasses.failure),
+  };
+
+  const removeVariantClasses = () => {
+    if (!statusEl) return;
+    Object.values(statusClassMap).forEach((classes) => {
+      classes.forEach((cls) => statusEl.classList.remove(cls));
+    });
+  };
+
+  const applyStatusClasses = (type) => {
+    if (!statusEl) return;
+    if (hiddenClass) statusEl.classList.remove(hiddenClass);
+    baseClasses.forEach((cls) => statusEl.classList.add(cls));
+    removeVariantClasses();
+    (statusClassMap[type] || []).forEach((cls) => statusEl.classList.add(cls));
+    statusEl.dataset.status = type;
+  };
+
+  return {
+    showStatus(type, message) {
+      if (!statusEl) return;
+      applyStatusClasses(type);
+      statusEl.textContent = message;
+    },
+    clearStatus() {
+      if (!statusEl) return;
+      statusEl.textContent = '';
+      if (hiddenClass) statusEl.classList.add(hiddenClass);
+      statusEl.removeAttribute('data-status');
+      removeVariantClasses();
+    },
+    toggleProcessing(isProcessing) {
+      if (!formEl) return;
+      Array.from(formEl.elements || []).forEach((element) => {
+        if (typeof element.disabled === 'boolean') {
+          element.disabled = isProcessing;
+        }
+      });
+    },
+    showMfa(config) {
+      modal.open(config);
+    },
+    hideMfa() {
+      modal.close();
+    },
+    setMfaStatus(type, message) {
+      modal.setStatus(type, message);
+    },
+  };
+};
+
+const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
+  const activeBackend = {
+    waitForAuth: defaultWaitForAuth,
+    webhookClient: defaultWebhookClient,
+    verifyMFA: defaultVerifyMFA,
+    ...backend,
+  };
+
+  const fallbackProcessor =
+    typeof processPayment === 'function'
+      ? processPayment
+      : async () => ({ status: 'SUCCESS' });
+
+  const orchestrateAuthPay = async (payload, overrideUI) => {
+    const paymentUI = overrideUI || ui;
+    const invoke = (method, ...args) =>
+      typeof paymentUI?.[method] === 'function'
+        ? paymentUI[method](...args)
+        : undefined;
+
+    invoke('showStatus', 'info', 'Routing through AuthPay orchestration...');
+    invoke('toggleProcessing', true);
+
+    await activeBackend.waitForAuth(payload);
+    const response = await activeBackend.webhookClient.processTransaction(payload);
 
     if (response.status === 'SUCCESS') {
-      ui.showStatus('success', 'Payment authorized. Preparing confirmation...');
+      invoke(
+        'showStatus',
+        'success',
+        'Payment authorized. Preparing confirmation...'
+      );
+      invoke('toggleProcessing', false);
       return response;
     }
 
     if (response.status === 'FAILURE') {
-      ui.showStatus('failure', response.reason || 'Transaction cancelled, please contact merchant.');
-      ui.toggleProcessing(false);
+      invoke(
+        'showStatus',
+        'failure',
+        response.reason || 'Transaction cancelled, please contact merchant.'
+      );
+      invoke('toggleProcessing', false);
       return response;
     }
 
     if (response.status !== 'AUTH_REQUIRED') {
-      ui.toggleProcessing(false);
+      invoke('toggleProcessing', false);
       return response;
     }
 
-    ui.showStatus('info', 'Additional authentication required.');
+    invoke('showStatus', 'info', 'Additional authentication required.');
 
-    return await new Promise((resolve) => {
+    return new Promise((resolve) => {
       const launchMfa = (methods) => {
-        ui.showMfa({
+        invoke('showMfa', {
           methods,
           onRequestCode: async (method) => {
-            ui.setMfaStatus('info', `Requesting code via ${method.toUpperCase()}...`);
-            const result = await webhookClient.requestMfaCode({ ccHash: payload.ccHash, method });
-            ui.setMfaStatus('success', result.message || 'Verification code dispatched.');
+            invoke(
+              'setMfaStatus',
+              'info',
+              `Requesting code via ${method.toUpperCase()}...`
+            );
+            const result = await activeBackend.webhookClient.requestMfaCode({
+              ccHash: payload.ccHash,
+              method,
+            });
+            invoke(
+              'setMfaStatus',
+              'success',
+              result.message || 'Verification code dispatched.'
+            );
             return result;
           },
           onSubmitCode: async (code) => {
-            ui.setMfaStatus('info', 'Validating code...');
-            const verification = await verifyMFA({ ccHash: payload.ccHash, code });
+            invoke('setMfaStatus', 'info', 'Validating code...');
+            const verification = await activeBackend.verifyMFA({
+              ccHash: payload.ccHash,
+              code,
+            });
             if (verification.status === 'SUCCESS') {
-              ui.setMfaStatus('success', 'Verification accepted. Completing transaction...');
-              ui.hideMfa();
+              invoke(
+                'setMfaStatus',
+                'success',
+                'Verification accepted. Completing transaction...'
+              );
+              invoke('hideMfa');
+              invoke('toggleProcessing', false);
               resolve(verification);
             } else if (verification.status === 'FAILURE') {
-              ui.setMfaStatus('failure', verification.reason || 'Verification failed. Transaction cancelled.');
-              ui.hideMfa();
-              ui.toggleProcessing(false);
+              invoke(
+                'setMfaStatus',
+                'failure',
+                verification.reason ||
+                  'Verification failed. Transaction cancelled.'
+              );
+              invoke('hideMfa');
+              invoke('toggleProcessing', false);
               resolve(verification);
             } else if (verification.status === 'AUTH_REQUIRED') {
-              ui.setMfaStatus('info', verification.message || 'Select an alternate authentication method.');
+              invoke(
+                'setMfaStatus',
+                'info',
+                verification.message ||
+                  'Select an alternate authentication method.'
+              );
               launchMfa(verification.methods);
             }
           },
@@ -380,8 +514,8 @@ const enableAuthPay = () => {
               status: 'FAILURE',
               reason: 'Transaction cancelled, please contact merchant.',
             };
-            ui.hideMfa();
-            ui.toggleProcessing(false);
+            invoke('hideMfa');
+            invoke('toggleProcessing', false);
             resolve(failure);
           },
         });
@@ -391,15 +525,44 @@ const enableAuthPay = () => {
     });
   };
 
-  window.process_payment = orchestrateAuthPay;
-  window.AuthPayIntegration = {
-    processPayment: orchestrateAuthPay,
-    fallbackProcess,
+  const wrapped = async (payload, overrideUI) => {
+    const result = await orchestrateAuthPay(payload, overrideUI);
+    if (!result?.status) {
+      return fallbackProcessor(payload, overrideUI);
+    }
+    return result;
+  };
+
+  wrapped.fallback = fallbackProcessor;
+  return wrapped;
+};
+
+const enable = ({ processPayment, ui, backend } = {}) => {
+  const modal = ensureAuthPayModal();
+  const resolvedUI = ui || createDefaultUI();
+  const wrappedProcessor = wrapProcessor({
+    processPayment,
+    ui: resolvedUI,
+    backend,
+  });
+
+  return {
+    modal,
+    ui: resolvedUI,
+    processPayment: wrappedProcessor,
+    fallbackProcess: wrappedProcessor.fallback,
   };
 };
 
-if (window.PaymentUI) {
-  enableAuthPay();
-} else {
-  window.addEventListener('DOMContentLoaded', enableAuthPay, { once: true });
+const AuthPay = {
+  ensureModal: ensureAuthPayModal,
+  createDefaultUI,
+  wrapProcessor,
+  enable,
+};
+
+if (typeof window !== 'undefined') {
+  window.AuthPay = AuthPay;
 }
+
+export default AuthPay;

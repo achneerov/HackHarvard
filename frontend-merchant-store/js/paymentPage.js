@@ -1,3 +1,4 @@
+import AuthPay from '../authpay.js';
 import { formatCurrency } from './products.js';
 import {
   getCart,
@@ -19,43 +20,26 @@ const disableForm = (disabled) => {
   });
 };
 
-const PaymentUI = {
-  showStatus(type, message) {
-    if (!statusPanel) return;
-    statusPanel.classList.remove('hidden');
-    statusPanel.textContent = message;
-    statusPanel.className = 'mt-6 rounded-2xl border border-white/10 bg-black/40 p-6 text-sm';
-    if (type === 'success') {
-      statusPanel.classList.add('border-success/50', 'text-success');
-    } else if (type === 'failure') {
-      statusPanel.classList.add('border-failure/50', 'text-failure');
-    } else {
-      statusPanel.classList.add('text-champagne/80');
-    }
+const PaymentUI = AuthPay.createDefaultUI({
+  form,
+  statusElement: statusPanel,
+  hiddenClass: 'hidden',
+  baseStatusClass:
+    'mt-6 rounded-2xl border border-white/10 bg-black/40 p-6 text-sm',
+  statusClasses: {
+    info: 'text-champagne/80',
+    success: 'border-success/50 text-success',
+    failure: 'border-failure/50 text-failure',
   },
-  clearStatus() {
-    if (!statusPanel) return;
-    statusPanel.classList.add('hidden');
-    statusPanel.textContent = '';
-  },
-  toggleProcessing(isProcessing) {
-    disableForm(isProcessing);
-    submitInFlight = isProcessing;
-  },
-  showMfa({ methods, onRequestCode, onSubmitCode, onCancel }) {
-    if (window.AuthPayModal?.open) {
-      window.AuthPayModal.open({ methods, onRequestCode, onSubmitCode, onCancel });
-    } else {
-      console.warn('AuthPay modal is not available.');
-    }
-  },
-  hideMfa() {
-    window.AuthPayModal?.close();
-  },
-  setMfaStatus(type, message) {
-    window.AuthPayModal?.setStatus(type, message);
-  },
-};
+});
+
+const originalToggleProcessing = PaymentUI.toggleProcessing?.bind(PaymentUI);
+if (originalToggleProcessing) {
+  PaymentUI.toggleProcessing = (state) => {
+    originalToggleProcessing(state);
+    submitInFlight = state;
+  };
+}
 
 window.PaymentUI = PaymentUI;
 
@@ -64,7 +48,8 @@ const renderSummary = () => {
   const cart = getCart();
   const customer = getCustomerDetails();
   if (cart.length === 0 || !customer) {
-    summaryContainer.innerHTML = '<p class="text-sm text-champagne/70">Your cart is empty or missing concierge details. Return to the cart to continue.</p>';
+    summaryContainer.innerHTML =
+      '<p class="text-sm text-champagne/70">Your cart is empty or missing concierge details. Return to the cart to continue.</p>';
     grandTotalEl.textContent = formatCurrency(0);
     disableForm(true);
     return;
@@ -76,7 +61,9 @@ const renderSummary = () => {
     line.className = 'flex items-start justify-between gap-4';
     line.innerHTML = `
       <span class="text-sm text-champagne/70">${item.name} × ${item.quantity}</span>
-      <span class="text-sm text-champagne/80">${formatCurrency(item.price * item.quantity)}</span>
+      <span class="text-sm text-champagne/80">${formatCurrency(
+        item.price * item.quantity
+      )}</span>
     `;
     summaryContainer.appendChild(line);
   });
@@ -128,41 +115,57 @@ const handleResponse = (response) => {
     clearCart();
     window.location.href = 'confirmation.html';
   } else if (response.status === 'FAILURE') {
-    PaymentUI.showStatus('failure', response.reason || 'Transaction cancelled, please contact merchant.');
+    PaymentUI.showStatus(
+      'failure',
+      response.reason || 'Transaction cancelled, please contact merchant.'
+    );
     PaymentUI.toggleProcessing(false);
   } else if (response.status === 'AUTH_REQUIRED') {
     PaymentUI.toggleProcessing(false);
   }
 };
 
-const baseProcessPayment = async () => {
+async function baseProcessPayment() {
   await new Promise((resolve) => setTimeout(resolve, 600));
   return {
     status: 'SUCCESS',
     reference: `LB-${Date.now()}`,
   };
-};
+}
 
-window.process_payment = window.process_payment || baseProcessPayment;
+const authPayIntegration = AuthPay.enable({
+  ui: PaymentUI,
+  processPayment: baseProcessPayment,
+});
+
+window.AuthPayIntegration = authPayIntegration;
+const processWithAuthPay = authPayIntegration.processPayment;
 
 form?.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (submitInFlight) return;
+
   PaymentUI.clearStatus();
   PaymentUI.showStatus('info', 'Authorizing payment...');
 
+  submitInFlight = true;
   const formData = new FormData(form);
-
-  PaymentUI.toggleProcessing(true);
   const payload = await buildPayload(formData);
 
   try {
-    const response = await window.process_payment(payload, PaymentUI);
+    const response = await processWithAuthPay(payload, PaymentUI);
     handleResponse(response);
+    if (response?.status !== 'SUCCESS') {
+      submitInFlight = false;
+    }
   } catch (error) {
     console.error('Payment error', error);
-    PaymentUI.showStatus('failure', 'An unexpected error occurred. Please try again.');
+    PaymentUI.showStatus(
+      'failure',
+      'An unexpected error occurred. Please try again.'
+    );
     PaymentUI.toggleProcessing(false);
+    submitInFlight = false;
   }
 });
 
