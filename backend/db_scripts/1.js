@@ -87,6 +87,59 @@ db.serialize(() => {
   `);
 
   console.log('Database tables created successfully!');
+
+  // Insert merchant API key
+  db.run(`INSERT INTO MerchantApiKeys (apiKey) VALUES (?)`, ['merchant_key_abc123'], function(err) {
+    if (err) console.error('Error inserting merchant API key:', err);
+    else console.log('✓ Inserted merchant API key');
+  });
+
+  // Insert merchant
+  db.run(`INSERT INTO Merchants (email, password, merchantApiKey) VALUES (?, ?, ?)`,
+    ['merchant@gmail.com', 'password123', 'merchant_key_abc123'],
+    function(err) {
+      if (err) console.error('Error inserting merchant:', err);
+      else console.log('✓ Inserted merchant');
+    }
+  );
+
+  // Insert 5 users
+  const users = [
+    ['hash001', 'user1@example.com', '+1234567890', 'enabled', 'enabled', 'enabled', null, 'New York'],
+    ['hash002', 'user2@example.com', '+1987654321', 'enabled', null, 'enabled', null, 'Los Angeles'],
+    ['hash003', 'user3@example.com', '+1555555555', null, 'enabled', null, null, 'Chicago'],
+    ['hash004', 'user4@example.com', '+1444444444', 'enabled', 'enabled', null, null, 'Boston'],
+    ['hash005', 'user5@example.com', '+1666666666', null, null, 'enabled', null, 'Miami']
+  ];
+
+  users.forEach((user, index) => {
+    db.run(`INSERT INTO Users (cchash, email, phone, otp, biometric, hardwareToken, authCode, signUpLocation)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, user, function(err) {
+      if (err) console.error(`Error inserting user ${index + 1}:`, err);
+      else console.log(`✓ Inserted user ${index + 1}`);
+    });
+  });
+
+  // Insert 50 MFA events
+  const locations = ['New York', 'Los Angeles', 'Chicago', 'Boston', 'Miami', 'Seattle', 'Austin', 'Denver'];
+  const statuses = [0, 1, 2]; // FAILURE, SUCCESS, AUTH_REQUIRED
+  const userHashes = ['hash001', 'hash002', 'hash003', 'hash004', 'hash005'];
+
+  for (let i = 0; i < 50; i++) {
+    const cchash = userHashes[Math.floor(Math.random() * userHashes.length)];
+    const amount = (Math.random() * 2000).toFixed(2);
+    const location = locations[Math.floor(Math.random() * locations.length)];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+
+    db.run(`INSERT INTO MFAEvents (cchash, transactionAmount, location, merchantApiKey, status)
+            VALUES (?, ?, ?, ?, ?)`,
+      [cchash, amount, location, 'merchant_key_abc123', status],
+      function(err) {
+        if (err) console.error(`Error inserting MFA event ${i + 1}:`, err);
+        else if (i === 49) console.log(`✓ Inserted 50 MFA events`);
+      }
+    );
+  }
 });
 
 db.close();
