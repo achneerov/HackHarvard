@@ -1,8 +1,215 @@
-import {
-  waitForAuth as defaultWaitForAuth,
-  webhookClient as defaultWebhookClient,
-  verifyMFA as defaultVerifyMFA,
-} from './js/mockBackend.js';
+const STATUS = {
+  FAILURE: 'FAILURE',
+  SUCCESS: 'SUCCESS',
+  AUTH_REQUIRED: 'AUTH_REQUIRED',
+};
+
+const NUMERIC_STATUS = {
+  0: STATUS.FAILURE,
+  1: STATUS.SUCCESS,
+  2: STATUS.AUTH_REQUIRED,
+};
+
+const METHOD_LABELS = {
+  email: 'Email One-Time Code',
+  sms: 'Text Message',
+};
+
+const DEFAULT_METHOD_OPTIONS = [
+  { id: 'sms', label: METHOD_LABELS.sms },
+  { id: 'email', label: METHOD_LABELS.email },
+];
+
+const upper = (value) => (typeof value === 'string' ? value.toUpperCase() : value);
+
+const normalizeStatus = (status) => {
+  if (status == null) return status;
+  if (typeof status === 'number') return NUMERIC_STATUS[status] || STATUS.FAILURE;
+  const normalized = upper(status);
+  return STATUS[normalized] || normalized;
+};
+
+const resolveWindowConfig = () => {
+  if (typeof window === 'undefined') return {};
+  const raw = window.AuthPayConfig || window.authPayConfig || {};
+  return raw.backend || raw;
+};
+
+const toArray = (value) => (Array.isArray(value) ? value : value != null ? [value] : []);
+
+const mapMethod = (entry) => {
+  if (!entry && entry !== 0) return null;
+  if (typeof entry === 'number') {
+    if (entry === 1) return { id: 'email', label: METHOD_LABELS.email };
+    if (entry === 2) return { id: 'sms', label: METHOD_LABELS.sms };
+    return { id: `method-${entry}`, label: `Authentication Method ${entry}` };
+  }
+
+  if (typeof entry === 'string') {
+    const normalized = entry.toLowerCase();
+    if (normalized === 'phone' || normalized === 'text') {
+      return { id: 'sms', label: METHOD_LABELS.sms };
+    }
+    if (METHOD_LABELS[normalized]) {
+      return { id: normalized, label: METHOD_LABELS[normalized] };
+    }
+    return { id: normalized, label: `Verification via ${normalized}` };
+  }
+
+  if (typeof entry === 'object') {
+    const id = entry.id || entry.method || entry.mode || entry.type;
+    const normalizedId = id ? String(id).toLowerCase() : null;
+    if (normalizedId && METHOD_LABELS[normalizedId]) {
+      return { id: normalizedId, label: entry.label || METHOD_LABELS[normalizedId] };
+    }
+    return {
+      id: normalizedId || 'authpay-method',
+      label: entry.label || `Verification via ${normalizedId || 'method'}`,
+    };
+  }
+
+  return null;
+};
+
+const convertMethods = (methods) =>
+  toArray(methods)
+    .map((method) => mapMethod(method))
+    .filter(Boolean);
+
+const ensureFetch = (fetchImpl) => {
+  if (fetchImpl) return fetchImpl;
+  if (typeof fetch === 'function') return fetch.bind(globalThis);
+  throw new Error('AuthPay: Fetch API is not available in this environment.');
+};
+
+const normalizeTransactionResponse = (payload = {}) => {
+  const status = normalizeStatus(payload.status);
+  const base = {
+    ...payload,
+    status,
+  };
+
+  if (!base.reason && payload.message && status === STATUS.FAILURE) {
+    base.reason = payload.message;
+  }
+
+  const rawMethods = payload.methods || payload.authMethods;
+  if (status === STATUS.AUTH_REQUIRED && rawMethods) {
+    base.methods = convertMethods(rawMethods);
+  }
+
+  return base;
+};
+
+const normalizeRequestResponse = (payload = {}) => ({
+  ...payload,
+  status: normalizeStatus(payload.status),
+});
+
+const createBackendClient = (options = {}) => {
+  const globalConfig = resolveWindowConfig();
+  const merged = {
+    ...globalConfig,
+    ...options,
+  };
+
+  const fetchImpl = ensureFetch(merged.fetch);
+  const baseUrl = (merged.baseUrl || '/api').replace(/\/$/, '');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...merged.headers,
+  };
+  const merchantApiKey = merged.merchantApiKey;
+  const defaultLocation = merged.defaultLocation;
+
+  const waitForAuth =
+    typeof merged.waitForAuth === 'function'
+      ? merged.waitForAuth
+      : async () => ({ status: 'READY' });
+
+  const post = async (endpoint, body) => {
+    const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const response = await fetchImpl(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+    const text = await response.text();
+    let data = {};
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch (error) {
+        data = { message: 'Invalid response format from AuthPay server.' };
+      }
+    }
+    if (!response.ok) {
+      return {
+        ...data,
+        status: normalizeStatus(data.status) || STATUS.FAILURE,
+      };
+    }
+    return data;
+  };
+
+  const resolveRequestPayload = (payload = {}) => {
+    const hashCC = payload.hashCC || payload.ccHash;
+    const amount =
+      payload.amount ?? payload.total ?? payload.totals?.subtotal ?? payload.transactionAmount;
+    const emailAddress =
+      payload.emailAddress || payload.customer?.email || payload.customer?.emailAddress;
+    const location =
+      payload.location ||
+      payload.customer?.city ||
+      payload.customer?.country ||
+      defaultLocation ||
+      'UNKNOWN';
+    const apiKey = payload.merchantApiKey || merchantApiKey;
+
+    if (!hashCC) throw new Error('AuthPay: Missing `ccHash` in payload.');
+    if (amount == null) throw new Error('AuthPay: Missing `amount` in payload.');
+    if (!apiKey) throw new Error('AuthPay: Missing `merchantApiKey`.');
+    if (!emailAddress) throw new Error('AuthPay: Missing `emailAddress`.');
+
+    return {
+      hashCC,
+      amount,
+      location,
+      merchantApiKey: apiKey,
+      emailAddress,
+    };
+  };
+
+  return {
+    waitForAuth,
+    async processTransaction(payload) {
+      const requestBody = resolveRequestPayload(payload);
+      const data = await post('/processTransaction', requestBody);
+      return normalizeTransactionResponse(data);
+    },
+    async requestCode({ ccHash, method } = {}) {
+      if (!ccHash) throw new Error('AuthPay: Missing `ccHash` when requesting a code.');
+      if (!method) throw new Error('AuthPay: Missing `method` when requesting a code.');
+      const data = await post('/requestCode', { hashCC: ccHash, authMode: method });
+      return normalizeRequestResponse(data);
+    },
+    async verifyMfa({ ccHash, code } = {}) {
+      if (!ccHash) throw new Error('AuthPay: Missing `ccHash` when verifying MFA.');
+      if (!code) throw new Error('AuthPay: Missing `code` when verifying MFA.');
+      const data = await post('/verifyMFA', { hashCC: ccHash, code });
+      return normalizeRequestResponse(data);
+    },
+  };
+};
+
+let memoizedDefaultBackend = null;
+
+const getDefaultBackend = () => {
+  if (!memoizedDefaultBackend) {
+    memoizedDefaultBackend = createBackendClient();
+  }
+  return memoizedDefaultBackend;
+};
 
 const ensureAuthPayModal = () => {
   if (window.AuthPayModal) return window.AuthPayModal;
@@ -172,6 +379,9 @@ const ensureAuthPayModal = () => {
         border-color: rgba(242, 119, 145, 0.45);
         color: rgba(254, 194, 208, 0.9);
       }
+      .authpay-mfa-hidden {
+        display: none !important;
+      }
       @media (max-width: 480px) {
         .authpay-mfa-heading {
           font-size: 22px;
@@ -200,11 +410,11 @@ const ensureAuthPayModal = () => {
       </div>
       <div class="authpay-mfa-actions">
         <button type="button" class="authpay-mfa-button authpay-mfa-request" data-authpay-request>Send Code</button>
-        <div class="authpay-mfa-field authpay-mfa-field--code">
+        <div class="authpay-mfa-field authpay-mfa-field--code authpay-mfa-hidden" data-authpay-code-block>
           <label class="authpay-mfa-label" for="authpay-mfa-code">Enter Code</label>
           <input id="authpay-mfa-code" class="authpay-mfa-input" data-authpay-code inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="one-time-code" />
         </div>
-        <button type="button" class="authpay-mfa-button authpay-mfa-submit" data-authpay-submit>Verify & Continue</button>
+        <button type="button" class="authpay-mfa-button authpay-mfa-submit authpay-mfa-hidden" data-authpay-submit>Verify & Continue</button>
       </div>
       <p class="authpay-mfa-status" data-authpay-status></p>
     </div>
@@ -215,16 +425,31 @@ const ensureAuthPayModal = () => {
   const closeButton = overlay.querySelector('[data-authpay-close]');
   const methodSelect = overlay.querySelector('[data-authpay-method]');
   const requestButton = overlay.querySelector('[data-authpay-request]');
+  const codeBlock = overlay.querySelector('[data-authpay-code-block]');
   const codeInput = overlay.querySelector('[data-authpay-code]');
   const submitButton = overlay.querySelector('[data-authpay-submit]');
   const statusMessage = overlay.querySelector('[data-authpay-status]');
 
   let currentHandlers = null;
+  const elementsRequiringCode = [codeBlock, submitButton];
 
   const clearStatus = () => {
     statusMessage.textContent = '';
     statusMessage.classList.remove('is-visible');
     statusMessage.removeAttribute('data-type');
+  };
+
+  const setCodeEntryVisible = (visible) => {
+    elementsRequiringCode.forEach((element) => {
+      if (!element) return;
+      element.classList.toggle('authpay-mfa-hidden', !visible);
+    });
+    if (codeInput) {
+      codeInput.value = '';
+    }
+    if (visible) {
+      codeInput?.focus();
+    }
   };
 
   const closeOverlay = () => {
@@ -233,6 +458,7 @@ const ensureAuthPayModal = () => {
     clearStatus();
     codeInput.value = '';
     currentHandlers = null;
+    setCodeEntryVisible(false);
   };
 
   const runSafely = async (button, handler, payload) => {
@@ -247,8 +473,9 @@ const ensureAuthPayModal = () => {
 
   const api = {
     open({ methods, onRequestCode, onSubmitCode, onCancel }) {
+      const methodList = Array.isArray(methods) ? methods : [];
       methodSelect.innerHTML = '';
-      methods.forEach((method) => {
+      methodList.forEach((method) => {
         const option = document.createElement('option');
         option.value = method.id;
         option.textContent = method.label;
@@ -258,6 +485,7 @@ const ensureAuthPayModal = () => {
       currentHandlers = { onRequestCode, onSubmitCode, onCancel };
       codeInput.value = '';
       clearStatus();
+      setCodeEntryVisible(false);
       overlay.classList.add('is-visible');
       overlay.setAttribute('aria-hidden', 'false');
       dialog.focus();
@@ -273,6 +501,22 @@ const ensureAuthPayModal = () => {
       statusMessage.textContent = message;
       statusMessage.setAttribute('data-type', type);
       statusMessage.classList.add('is-visible');
+    },
+    updateMethods(methods = []) {
+      const methodList = Array.isArray(methods) ? methods : [];
+      methodSelect.innerHTML = '';
+      methodList.forEach((method) => {
+        const option = document.createElement('option');
+        option.value = method.id;
+        option.textContent = method.label;
+        methodSelect.appendChild(option);
+      });
+    },
+    showCodeEntry() {
+      setCodeEntryVisible(true);
+    },
+    hideCodeEntry() {
+      setCodeEntryVisible(false);
     },
   };
 
@@ -397,16 +641,57 @@ const createDefaultUI = ({
     setMfaStatus(type, message) {
       modal.setStatus(type, message);
     },
+    updateMfaMethods(methods) {
+      modal.updateMethods?.(methods);
+    },
+    showCodeEntry() {
+      modal.showCodeEntry?.();
+    },
+    hideCodeEntry() {
+      modal.hideCodeEntry?.();
+    },
+  };
+};
+
+const resolveBackendClient = (backend) => {
+  const baseBackend = getDefaultBackend();
+  if (!backend) return baseBackend;
+
+  const hasFunctions =
+    typeof backend.processTransaction === 'function' ||
+    typeof backend.requestCode === 'function' ||
+    typeof backend.verifyMfa === 'function';
+
+  if (!hasFunctions && !backend.webhookClient) {
+    return createBackendClient(backend);
+  }
+
+  const legacyWebhook = backend.webhookClient || {};
+  return {
+    waitForAuth:
+      typeof backend.waitForAuth === 'function'
+        ? backend.waitForAuth
+        : baseBackend.waitForAuth,
+    processTransaction:
+      backend.processTransaction ||
+      legacyWebhook.processTransaction?.bind(legacyWebhook) ||
+      baseBackend.processTransaction,
+    requestCode:
+      backend.requestCode ||
+      backend.requestMfaCode ||
+      legacyWebhook.requestMfaCode?.bind(legacyWebhook) ||
+      baseBackend.requestCode,
+    verifyMfa:
+      backend.verifyMfa ||
+      backend.verifyMFA ||
+      legacyWebhook.verifyMfa?.bind(legacyWebhook) ||
+      legacyWebhook.verifyMFA?.bind(legacyWebhook) ||
+      baseBackend.verifyMfa,
   };
 };
 
 const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
-  const activeBackend = {
-    waitForAuth: defaultWaitForAuth,
-    webhookClient: defaultWebhookClient,
-    verifyMFA: defaultVerifyMFA,
-    ...backend,
-  };
+  const activeBackend = resolveBackendClient(backend);
 
   const fallbackProcessor =
     typeof processPayment === 'function'
@@ -424,9 +709,9 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
     invoke('toggleProcessing', true);
 
     await activeBackend.waitForAuth(payload);
-    const response = await activeBackend.webhookClient.processTransaction(payload);
+    const response = await activeBackend.processTransaction(payload);
 
-    if (response.status === 'SUCCESS') {
+    if (response.status === STATUS.SUCCESS) {
       invoke(
         'showStatus',
         'success',
@@ -436,7 +721,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
       return response;
     }
 
-    if (response.status === 'FAILURE') {
+    if (response.status === STATUS.FAILURE) {
       invoke(
         'showStatus',
         'failure',
@@ -446,7 +731,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
       return response;
     }
 
-    if (response.status !== 'AUTH_REQUIRED') {
+    if (response.status !== STATUS.AUTH_REQUIRED) {
       invoke('toggleProcessing', false);
       return response;
     }
@@ -455,58 +740,96 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
 
     return new Promise((resolve) => {
       const launchMfa = (methods) => {
+        const methodList =
+          Array.isArray(methods) && methods.length
+            ? methods
+            : DEFAULT_METHOD_OPTIONS.map((method) => ({ ...method }));
         invoke('showMfa', {
-          methods,
+          methods: methodList,
           onRequestCode: async (method) => {
             invoke(
               'setMfaStatus',
               'info',
               `Requesting code via ${method.toUpperCase()}...`
             );
-            const result = await activeBackend.webhookClient.requestMfaCode({
-              ccHash: payload.ccHash,
-              method,
-            });
-            invoke(
-              'setMfaStatus',
-              'success',
-              result.message || 'Verification code dispatched.'
-            );
-            return result;
-          },
-          onSubmitCode: async (code) => {
-            invoke('setMfaStatus', 'info', 'Validating code...');
-            const verification = await activeBackend.verifyMFA({
-              ccHash: payload.ccHash,
-              code,
-            });
-            if (verification.status === 'SUCCESS') {
+            try {
+              const result = await activeBackend.requestCode({
+                ccHash: payload.ccHash,
+                method,
+              });
+              if (result.status === STATUS.FAILURE) {
+                invoke(
+                  'setMfaStatus',
+                  'failure',
+                  result.message ||
+                    'Unable to deliver code. Please choose another method.'
+                );
+                return result;
+              }
               invoke(
                 'setMfaStatus',
                 'success',
-                'Verification accepted. Completing transaction...'
+                result.message || 'Verification code dispatched.'
               );
-              invoke('hideMfa');
-              invoke('toggleProcessing', false);
-              resolve(verification);
-            } else if (verification.status === 'FAILURE') {
+              invoke('showCodeEntry');
+              return result;
+            } catch (error) {
               invoke(
                 'setMfaStatus',
                 'failure',
-                verification.reason ||
-                  'Verification failed. Transaction cancelled.'
+                'Network issue while requesting the code. Please retry.'
               );
-              invoke('hideMfa');
-              invoke('toggleProcessing', false);
-              resolve(verification);
-            } else if (verification.status === 'AUTH_REQUIRED') {
+              return {
+                status: STATUS.FAILURE,
+                reason: error?.message,
+              };
+            }
+          },
+          onSubmitCode: async (code) => {
+            invoke('setMfaStatus', 'info', 'Validating code...');
+            try {
+              const verification = await activeBackend.verifyMfa({
+                ccHash: payload.ccHash,
+                code,
+              });
+              if (verification.status === STATUS.SUCCESS) {
+                invoke(
+                  'setMfaStatus',
+                  'success',
+                  'Verification accepted. Completing transaction...'
+                );
+                invoke('hideMfa');
+                invoke('toggleProcessing', false);
+                resolve(verification);
+              } else if (verification.status === STATUS.FAILURE) {
+                invoke(
+                  'setMfaStatus',
+                  'failure',
+                  verification.reason ||
+                    'Verification failed. Transaction cancelled.'
+                );
+                invoke('hideMfa');
+                invoke('toggleProcessing', false);
+                resolve(verification);
+              } else if (verification.status === STATUS.AUTH_REQUIRED) {
+                if (verification.methods?.length) {
+                  invoke('updateMfaMethods', verification.methods);
+                }
+                invoke('showCodeEntry');
+                invoke(
+                  'setMfaStatus',
+                  'failure',
+                  verification.message ||
+                    'Code mismatch. Please try again or send a fresh code.'
+                );
+              }
+            } catch (error) {
+              invoke('showCodeEntry');
               invoke(
                 'setMfaStatus',
-                'info',
-                verification.message ||
-                  'Select an alternate authentication method.'
+                'failure',
+                'Network issue while verifying the code. Please retry.'
               );
-              launchMfa(verification.methods);
             }
           },
           onCancel: () => {
@@ -559,6 +882,8 @@ const AuthPay = {
   createDefaultUI,
   wrapProcessor,
   enable,
+  createBackendClient,
+  STATUS,
 };
 
 if (typeof window !== 'undefined') {

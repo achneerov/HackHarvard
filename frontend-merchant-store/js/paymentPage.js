@@ -7,6 +7,13 @@ import {
   saveOrder,
 } from './storage.js';
 
+const backendConfig =
+  (typeof window !== 'undefined' && {
+    ...(window.AuthPayConfig?.backend || window.AuthPayConfig || {}),
+  }) || {};
+
+const authPayBackendClient = AuthPay.createBackendClient(backendConfig);
+
 const form = document.getElementById('payment-form');
 const statusPanel = document.getElementById('payment-status');
 const summaryContainer = document.getElementById('order-summary');
@@ -83,9 +90,14 @@ const hashCardNumber = async (cardNumber) => {
 const buildPayload = async (formData) => {
   const cart = getCart();
   const customer = getCustomerDetails();
-  const cardNumber = formData.get('cardNumber');
+  const rawCardNumber = formData.get('cardNumber') || '';
+  const cardNumber = rawCardNumber.replace(/\s+/g, '');
   const ccHash = await hashCardNumber(cardNumber);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const normalizedTotal = Number(total.toFixed(2));
+  const locationSuggestion = [customer?.city, customer?.country]
+    .filter(Boolean)
+    .join(', ');
 
   return {
     cart,
@@ -97,9 +109,13 @@ const buildPayload = async (formData) => {
       expiry: formData.get('expiry'),
     },
     totals: {
-      subtotal: total,
+      subtotal: normalizedTotal,
       currency: 'USD',
     },
+    amount: normalizedTotal,
+    location: locationSuggestion || backendConfig.defaultLocation || 'Online',
+    merchantApiKey: backendConfig.merchantApiKey,
+    emailAddress: customer?.email,
   };
 };
 
@@ -125,17 +141,9 @@ const handleResponse = (response) => {
   }
 };
 
-async function baseProcessPayment() {
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  return {
-    status: 'SUCCESS',
-    reference: `LB-${Date.now()}`,
-  };
-}
-
 const authPayIntegration = AuthPay.enable({
   ui: PaymentUI,
-  processPayment: baseProcessPayment,
+  backend: authPayBackendClient,
 });
 
 window.AuthPayIntegration = authPayIntegration;
