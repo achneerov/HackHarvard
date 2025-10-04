@@ -95,68 +95,59 @@ db.serialize(() => {
     }
   );
 
-  // Insert 5 users
+  // Insert 50 users with realistic attributes
   const users = [
-    [
-      "hash001",
-      "user1@example.com",
-      "+1234567890",
-      "enabled",
-      "enabled",
-      "enabled",
-      null,
-      "New York",
-    ],
-    [
-      "hash002",
-      "user2@example.com",
-      "+1987654321",
-      "enabled",
-      null,
-      "enabled",
-      null,
-      "Los Angeles",
-    ],
-    [
-      "hash003",
-      "user3@example.com",
-      "+1555555555",
-      null,
-      "enabled",
-      null,
-      null,
-      "Chicago",
-    ],
-    [
-      "hash004",
-      "user4@example.com",
-      "+1444444444",
-      "enabled",
-      "enabled",
-      null,
-      null,
-      "Boston",
-    ],
-    [
-      "hash005",
-      "user5@example.com",
-      "+1666666666",
-      null,
-      null,
-      "enabled",
-      null,
-      "Miami",
-    ],
-    [
-      "0866a6eaea5cb085e4cf6ef19296bf19647552dd5f96f1e530db3ae61837efe7",
-      "renaudbernier@hotmail.fr",
-      "+33652458849",
-      null,
-      null,
-      "enabled",
-      null,
-      "Paris",
-    ],
+    ["hash001", "user1@example.com", "+1234567890", "enabled", "enabled", "enabled", null, "New York"],
+    ["hash002", "user2@example.com", "+1987654321", "enabled", null, "enabled", null, "Los Angeles"],
+    ["hash003", "user3@example.com", "+1555555555", null, "enabled", null, null, "Chicago"],
+    ["hash004", "user4@example.com", "+1444444444", "enabled", "enabled", null, null, "Boston"],
+    ["hash005", "user5@example.com", "+1666666666", null, null, "enabled", null, "Miami"],
+    ["0866a6eaea5cb085e4cf6ef19296bf19647552dd5f96f1e530db3ae61837efe7", "renaudbernier@hotmail.fr", "+33652458849", null, null, "enabled", null, "Paris"],
+    ["hash006", "sarah.johnson@gmail.com", "+14155551234", "enabled", "enabled", null, null, "San Francisco"],
+    ["hash007", "michael.chen@yahoo.com", "+12125559876", null, "enabled", "enabled", null, "New York"],
+    ["hash008", "emily.rodriguez@outlook.com", "+13105552341", "enabled", null, "enabled", null, "Los Angeles"],
+    ["hash009", "david.kim@protonmail.com", "+17735558765", "enabled", "enabled", "enabled", null, "Chicago"],
+    ["hash010", "jessica.martinez@gmail.com", "+16175554321", null, "enabled", null, null, "Boston"],
+    ["hash011", "christopher.lee@hotmail.com", "+13055556789", "enabled", null, null, null, "Miami"],
+    ["hash012", "amanda.wilson@gmail.com", "+12065557654", "enabled", "enabled", "enabled", null, "Seattle"],
+    ["hash013", "daniel.brown@yahoo.com", "+15125558901", null, null, "enabled", null, "Austin"],
+    ["hash014", "jennifer.davis@outlook.com", "+17205559012", "enabled", "enabled", null, null, "Denver"],
+    ["hash015", "matthew.garcia@gmail.com", "+14045553210", null, "enabled", "enabled", null, "Atlanta"],
+    ["hash016", "ashley.taylor@protonmail.com", "+16025554567", "enabled", null, "enabled", null, "Phoenix"],
+    ["hash017", "joshua.anderson@hotmail.com", "+15035556543", "enabled", "enabled", null, null, "Portland"],
+    ["hash018", "stephanie.thomas@gmail.com", "+17025558765", null, "enabled", null, null, "Las Vegas"],
+    ["hash019", "andrew.jackson@yahoo.com", "+12155552109", "enabled", null, "enabled", null, "Philadelphia"],
+    ["hash020", "melissa.white@outlook.com", "+12145559876", "enabled", "enabled", "enabled", null, "Dallas"],
+    ["hash021", "ryan.harris@gmail.com", "+17135554321", null, null, "enabled", null, "Houston"],
+    ["hash022", "nicole.martin@protonmail.com", "+14805557890", "enabled", "enabled", null, null, "Phoenix"],
+    ["hash023", "brandon.thompson@hotmail.com", "+16195556543", "enabled", null, "enabled", null, "San Diego"],
+    ["hash024", "rachel.moore@gmail.com", "+14085553210", null, "enabled", "enabled", null, "San Jose"],
+    ["hash025", "kevin.lewis@yahoo.com", "+15035552109", "enabled", "enabled", null, null, "Portland"],
+    ["hash026", "laura.walker@outlook.com", "+13035558901", "enabled", null, null, null, "Denver"],
+    ["hash027", "jason.hall@gmail.com", "+18015557654", null, "enabled", "enabled", null, "Salt Lake City"],
+    ["hash028", "kimberly.allen@protonmail.com", "+15055556789", "enabled", "enabled", "enabled", null, "Albuquerque"],
+    ["hash029", "eric.young@hotmail.com", "+14155554321", "enabled", null, "enabled", null, "San Francisco"],
+    ["hash030", "lisa.hernandez@gmail.com", "+17025559876", null, "enabled", null, null, "Las Vegas"],
+    ["hash031", "brian.king@yahoo.com", "+16025552341", "enabled", "enabled", null, null, "Phoenix"],
+    ["hash032", "karen.wright@outlook.com", "+19165558765", "enabled", null, "enabled", null, "Sacramento"],
+    ["hash033", "jeffrey.lopez@gmail.com", "+13235554567", null, "enabled", "enabled", null, "Los Angeles"],
+    ["hash034", "michelle.hill@protonmail.com", "+18585556543", "enabled", "enabled", null, null, "San Diego"],
+    ["hash035", "gary.scott@hotmail.com", "+14805553210", "enabled", null, null, null, "Phoenix"],
+    ["hash036", "donna.green@gmail.com", "+17025552109", null, "enabled", "enabled", null, "Las Vegas"],
+    ["hash037", "steven.adams@yahoo.com", "+12125558901", "enabled", "enabled", "enabled", null, "New York"],
+    ["hash038", "carol.baker@outlook.com", "+13105557654", "enabled", null, "enabled", null, "Los Angeles"],
+    ["hash039", "joseph.nelson@gmail.com", "+17735556789", null, "enabled", null, null, "Chicago"],
+    ["hash040", "sharon.carter@protonmail.com", "+16175554321", "enabled", "enabled", null, null, "Boston"],
+    ["hash041", "ronald.mitchell@hotmail.com", "+13055559876", "enabled", null, "enabled", null, "Miami"],
+    ["hash042", "betty.perez@gmail.com", "+12065552341", null, "enabled", "enabled", null, "Seattle"],
+    ["hash043", "anthony.roberts@yahoo.com", "+15125558765", "enabled", "enabled", null, null, "Austin"],
+    ["hash044", "sandra.turner@outlook.com", "+17205554567", "enabled", null, null, null, "Denver"],
+    ["hash045", "mark.phillips@gmail.com", "+14045556543", null, "enabled", "enabled", null, "Atlanta"],
+    ["hash046", "patricia.campbell@protonmail.com", "+16025553210", "enabled", "enabled", "enabled", null, "Phoenix"],
+    ["hash047", "donald.parker@hotmail.com", "+15035552109", "enabled", null, "enabled", null, "Portland"],
+    ["hash048", "dorothy.evans@gmail.com", "+17025558901", null, "enabled", null, null, "Las Vegas"],
+    ["hash049", "paul.edwards@yahoo.com", "+12155557654", "enabled", "enabled", null, null, "Philadelphia"],
+    ["hash050", "helen.collins@outlook.com", "+12145556789", "enabled", null, "enabled", null, "Dallas"],
   ];
 
   users.forEach((user, index) => {
@@ -173,16 +164,18 @@ db.serialize(() => {
 
   // Insert 3000 MFA events across the last 12 months with realistic distribution
   const locations = [
-    "New York",
-    "Los Angeles",
-    "Chicago",
-    "Boston",
-    "Miami",
-    "Seattle",
-    "Austin",
-    "Denver",
+    "New York", "Los Angeles", "Chicago", "Boston", "Miami", "Seattle", "Austin", "Denver",
+    "San Francisco", "Philadelphia", "Dallas", "Houston", "San Diego", "San Jose", "Portland",
+    "Las Vegas", "Atlanta", "Phoenix", "Sacramento", "Salt Lake City", "Albuquerque", "Paris"
   ];
-  const userHashes = ["hash001", "hash002", "hash003", "hash004", "hash005"];
+  const userHashes = [
+    "hash001", "hash002", "hash003", "hash004", "hash005", "hash006", "hash007", "hash008", "hash009", "hash010",
+    "hash011", "hash012", "hash013", "hash014", "hash015", "hash016", "hash017", "hash018", "hash019", "hash020",
+    "hash021", "hash022", "hash023", "hash024", "hash025", "hash026", "hash027", "hash028", "hash029", "hash030",
+    "hash031", "hash032", "hash033", "hash034", "hash035", "hash036", "hash037", "hash038", "hash039", "hash040",
+    "hash041", "hash042", "hash043", "hash044", "hash045", "hash046", "hash047", "hash048", "hash049", "hash050",
+    "0866a6eaea5cb085e4cf6ef19296bf19647552dd5f96f1e530db3ae61837efe7"
+  ];
   const totalTransactions = 3000;
 
   // Generate realistic status distribution with random spikes
@@ -282,7 +275,7 @@ db.serialize(() => {
     // Highest priority: Decline if different location than signup location
     {
       merchantApiKey: "merchant_key_abc123",
-      priority: 100,
+      priority: 1,
       amount: null,
       location: "HOME_LOCATION",
       timeStart: null,
@@ -294,7 +287,7 @@ db.serialize(() => {
     // High priority: Require MFA for transactions over $50,000
     {
       merchantApiKey: "merchant_key_abc123",
-      priority: 10,
+      priority: 2,
       amount: 50000,
       location: null,
       timeStart: null,
@@ -306,7 +299,7 @@ db.serialize(() => {
     // Medium priority: Require MFA for transactions between $1,000 - $50,000
     {
       merchantApiKey: "merchant_key_abc123",
-      priority: 8,
+      priority: 3,
       amount: 1000,
       location: null,
       timeStart: null,
@@ -318,7 +311,7 @@ db.serialize(() => {
     // Low priority: Accept transactions under $1,000
     {
       merchantApiKey: "merchant_key_abc123",
-      priority: 5,
+      priority: 4,
       amount: 1000,
       location: null,
       timeStart: null,

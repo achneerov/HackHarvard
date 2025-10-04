@@ -1311,7 +1311,11 @@ app.get("/api/dashboard/stats", async (req, res) => {
               };
             })
           )
-            .then((enrichedRows) => resolve(enrichedRows))
+            .then((enrichedRows) => {
+              // Sort by total failures descending
+              enrichedRows.sort((a, b) => b.failed - a.failed);
+              resolve(enrichedRows);
+            })
             .catch((err) => reject(err));
         }
       );

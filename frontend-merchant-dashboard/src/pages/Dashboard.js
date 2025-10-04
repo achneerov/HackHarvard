@@ -7,6 +7,8 @@ function Dashboard() {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState('month');
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [customerLimit, setCustomerLimit] = useState(10);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -218,138 +220,190 @@ function Dashboard() {
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-5">High-Risk Customer Alerts</h3>
-          {dashboardData.customerStats && dashboardData.customerStats.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dashboardData.customerStats
-                .map(customer => {
-                  const riskData = dashboardData.riskMetrics?.find(r => r.name === customer.name);
-                  const merged = { ...customer, ...riskData };
-                  // Ensure totalAttempts is the sum of all transaction types
-                  merged.totalAttempts = (merged.success || 0) + (merged.failed || 0) + (merged.authRequired || 0);
-                  return merged;
-                })
-                .sort((a, b) => (b.authRequired + b.failed) - (a.authRequired + a.failed))
-                .slice(0, 3)}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    console.log('Tooltip data:', data);
-                    return (
-                      <div className="bg-white p-4 border-2 border-gray-300 rounded-xl shadow-2xl max-w-md z-50 relative" style={{ zIndex: 9999 }}>
-                        {/* Header */}
-                        <div className="mb-3 pb-2 border-b-2 border-gray-200">
-                          <p className="font-bold text-base text-gray-900">{data.name}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">Customer Risk Analysis</p>
-                        </div>
+          <div className="flex justify-between items-center mb-5">
+            <h3 className="text-lg font-semibold text-gray-900">High-Risk Customer Alerts</h3>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-600">Show:</label>
+              <input
+                type="number"
+                min="1"
+                max={dashboardData?.riskMetrics?.length || 100}
+                value={customerLimit}
+                onChange={(e) => setCustomerLimit(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-20 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm font-semibold transition-all focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              />
+              <span className="text-sm text-gray-600">customers</span>
+            </div>
+          </div>
+          {dashboardData.riskMetrics && dashboardData.riskMetrics.length > 0 ? (
+            <div className="space-y-2">
+              {/* Header Row */}
+              <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-semibold text-gray-600 uppercase tracking-wide border-b-2 border-gray-200">
+                <div className="col-span-4">User ID</div>
+                <div className="col-span-2 text-center">Success</div>
+                <div className="col-span-3 text-center">Auth Required</div>
+                <div className="col-span-3 text-center">Failed</div>
+              </div>
 
-                        {/* Transaction Status Summary */}
-                        <div className="mb-3">
-                          <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Transaction Summary</h4>
-                          <div className="grid grid-cols-3 gap-2">
-                            <div className="bg-green-50 rounded-lg p-2 border border-green-200">
-                              <div className="text-xl mb-0.5">✓</div>
-                              <div className="text-xs text-green-700 font-medium">Successful</div>
-                              <div className="text-base font-bold text-green-900">{data.success}</div>
-                            </div>
-                            <div className="bg-yellow-50 rounded-lg p-2 border border-yellow-200">
-                              <div className="text-xl mb-0.5">⚠</div>
-                              <div className="text-xs text-yellow-700 font-medium">Auth Req.</div>
-                              <div className="text-base font-bold text-yellow-900">{data.authRequired}</div>
-                            </div>
-                            <div className="bg-red-50 rounded-lg p-2 border border-red-200">
-                              <div className="text-xl mb-0.5">✗</div>
-                              <div className="text-xs text-red-700 font-medium">Failed</div>
-                              <div className="text-base font-bold text-red-900">{data.failed}</div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Activity Metrics */}
-                        <div className="mb-3 bg-blue-50 rounded-lg p-3 border border-blue-200">
-                          <h4 className="text-xs font-semibold text-blue-900 uppercase tracking-wide mb-2">Activity Metrics</h4>
-                          <div className="space-y-1.5 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-700">Total Attempts:</span>
-                              <span className="font-semibold text-gray-900">{data.totalAttempts || 'N/A'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-700">Locations:</span>
-                              <span className="font-semibold text-gray-900">{data.locationCount || 0}</span>
-                            </div>
-                            <div className="text-xs text-gray-600 bg-white rounded p-1.5 mt-1.5">
-                              {data.locations || 'No locations'}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Time Analysis & Consecutive Patterns - Combined */}
-                        <div className="mb-3 grid grid-cols-2 gap-2">
-                          <div className="bg-yellow-50 rounded-lg p-2.5 border border-yellow-200">
-                            <h4 className="text-xs font-semibold text-yellow-900 uppercase tracking-wide mb-1.5">Time Analysis</h4>
-                            <div className="space-y-1 text-xs">
-                              <div className="flex justify-between">
-                                <span className="text-gray-700">Auths:</span>
-                                <span className="font-semibold text-gray-900">{data.avgTimeBetweenAuths || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-700">Fails:</span>
-                                <span className="font-semibold text-gray-900">{data.avgTimeBetweenFails || 'N/A'}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-200">
-                            <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-1.5">Consecutive</h4>
-                            <div className="space-y-1 text-xs">
-                              <div className="flex justify-between">
-                                <span className="text-gray-700">Max Fails:</span>
-                                <span className="font-bold text-red-600">{data.maxConsecutiveFails !== undefined ? data.maxConsecutiveFails : 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-700">Max Success:</span>
-                                <span className="font-bold text-green-600">{data.maxConsecutiveSuccesses !== undefined ? data.maxConsecutiveSuccesses : 'N/A'}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Recent Activity */}
-                        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 border border-gray-300">
-                          <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-2">Recent Activity</h4>
-                          <div className="space-y-1 text-xs">
-                            {data.recentTimestamps && data.recentTimestamps.length > 0 ? (
-                              data.recentTimestamps.map((ts, idx) => (
-                                <div key={idx} className="flex items-center gap-1.5 text-gray-700">
-                                  <span className="text-blue-500 text-xs">●</span>
-                                  <span>{ts}</span>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="text-gray-500 text-center py-1">No recent activity</div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                }} wrapperStyle={{ zIndex: 9999 }} />
-                <Legend />
-                <Bar dataKey="success" fill="#48bb78" name="Successful" />
-                <Bar dataKey="authRequired" fill="#eab308" name="Auth Required" />
-                <Bar dataKey="failed" fill="#f56565" name="Failed" />
-              </BarChart>
-            </ResponsiveContainer>
+              {/* User Rows - Scrollable Container */}
+              <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">
+                {dashboardData.riskMetrics.slice(0, customerLimit).map((user, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedUser(user)}
+                    className="grid grid-cols-12 gap-4 px-4 py-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer"
+                  >
+                    <div className="col-span-4 font-semibold text-gray-900">{user.name}</div>
+                    <div className="col-span-2 text-center">
+                      <span className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
+                        {user.success}
+                      </span>
+                    </div>
+                    <div className="col-span-3 text-center">
+                      <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-semibold">
+                        {user.authRequired}
+                      </span>
+                    </div>
+                    <div className="col-span-3 text-center">
+                      <span className="inline-block px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-semibold">
+                        {user.failed}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-gray-500">
+            <div className="h-[200px] flex items-center justify-center text-gray-500">
               No customer data available
             </div>
           )}
         </div>
+
+        {/* Modal Dialog for User Details */}
+        {selectedUser && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={() => setSelectedUser(null)}
+          >
+            <div
+              className="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex justify-between items-start mb-6 pb-4 border-b-2 border-gray-200">
+                <div>
+                  <p className="font-bold text-xl text-gray-900">{selectedUser.name}</p>
+                  <p className="text-sm text-gray-500 mt-1">Customer Risk Analysis</p>
+                </div>
+                <button
+                  onClick={() => setSelectedUser(null)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Transaction Summary */}
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Transaction Summary</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-green-50 rounded-xl p-4 border-2 border-green-200">
+                    <svg className="w-8 h-8 text-green-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-xs text-green-700 font-medium mb-1">Successful</div>
+                    <div className="text-2xl font-bold text-green-900">{selectedUser.success}</div>
+                  </div>
+                  <div className="bg-yellow-50 rounded-xl p-4 border-2 border-yellow-200">
+                    <svg className="w-8 h-8 text-yellow-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <div className="text-xs text-yellow-700 font-medium mb-1">Auth Required</div>
+                    <div className="text-2xl font-bold text-yellow-900">{selectedUser.authRequired}</div>
+                  </div>
+                  <div className="bg-red-50 rounded-xl p-4 border-2 border-red-200">
+                    <svg className="w-8 h-8 text-red-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-xs text-red-700 font-medium mb-1">Failed</div>
+                    <div className="text-2xl font-bold text-red-900">{selectedUser.failed}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Activity Metrics */}
+              <div className="mb-6 bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                <h4 className="text-sm font-semibold text-blue-900 uppercase tracking-wide mb-3">Activity Metrics</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-700">Total Attempts:</span>
+                    <span className="font-bold text-gray-900">{selectedUser.totalAttempts || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-700">Locations:</span>
+                    <span className="font-bold text-gray-900">{selectedUser.locationCount || 0}</span>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-700 bg-white rounded-lg p-3 mt-3">
+                  <span className="font-semibold">Regions: </span>{selectedUser.locations || 'No locations'}
+                </div>
+              </div>
+
+              {/* Time Analysis & Consecutive Patterns */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-yellow-50 rounded-xl p-4 border-2 border-yellow-200">
+                  <h4 className="text-sm font-semibold text-yellow-900 uppercase tracking-wide mb-3">Time Analysis</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Avg. Between Auths:</span>
+                      <span className="font-bold text-gray-900">{selectedUser.avgTimeBetweenAuths || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Avg. Between Fails:</span>
+                      <span className="font-bold text-gray-900">{selectedUser.avgTimeBetweenFails || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">Consecutive Patterns</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Max Consecutive Fails:</span>
+                      <span className="font-bold text-red-600">{selectedUser.maxConsecutiveFails !== undefined ? selectedUser.maxConsecutiveFails : 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Max Consecutive Success:</span>
+                      <span className="font-bold text-green-600">{selectedUser.maxConsecutiveSuccesses !== undefined ? selectedUser.maxConsecutiveSuccesses : 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 border-2 border-gray-300">
+                <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">Recent Activity</h4>
+                <div className="space-y-2">
+                  {selectedUser.recentTimestamps && selectedUser.recentTimestamps.length > 0 ? (
+                    selectedUser.recentTimestamps.map((ts, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-sm text-gray-700 bg-white rounded-lg px-3 py-2">
+                        <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                          <circle cx="10" cy="10" r="4" />
+                        </svg>
+                        <span>{ts}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-500 text-center py-2">No recent activity</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-5">Failed Transaction Locations</h3>
