@@ -140,6 +140,32 @@ db.serialize(() => {
       }
     );
   }
+
+  // Insert sample rules
+  const rules = [
+    // Highest priority: Decline if different location than signup location
+    { merchantApiKey: 'merchant_key_abc123', priority: 100, amount: null, location: 'HOME_LOCATION', timeStart: null, timeEnd: null, condition: 'NOT', successStatus: 0 },
+
+    // High priority: Decline transactions over $10,000
+    { merchantApiKey: 'merchant_key_abc123', priority: 10, amount: 10000, location: null, timeStart: null, timeEnd: null, condition: 'GREATER', successStatus: 0 },
+
+    // Medium priority: Require MFA for transactions between $1,000 - $10,000
+    { merchantApiKey: 'merchant_key_abc123', priority: 8, amount: 1000, location: null, timeStart: null, timeEnd: null, condition: 'GREATER', successStatus: 2 },
+
+    // Low priority: Accept transactions under $1,000
+    { merchantApiKey: 'merchant_key_abc123', priority: 5, amount: 1000, location: null, timeStart: null, timeEnd: null, condition: 'LESS_THAN', successStatus: 1 }
+  ];
+
+  rules.forEach((rule, index) => {
+    db.run(`INSERT INTO Rules (merchantApiKey, priority, amount, location, timeStart, timeEnd, condition, successStatus)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [rule.merchantApiKey, rule.priority, rule.amount, rule.location, rule.timeStart, rule.timeEnd, rule.condition, rule.successStatus],
+      function(err) {
+        if (err) console.error(`Error inserting rule ${index + 1}:`, err);
+        else if (index === rules.length - 1) console.log(`✓ Inserted ${rules.length} rules`);
+      }
+    );
+  });
 });
 
 db.close();

@@ -60,7 +60,7 @@ function logMFAEvent(cchash, transactionAmount, location, merchantApiKey, status
 }
 
 // Helper function to evaluate transaction rules
-function evaluateRules(merchantApiKey, amount, location, timestamp) {
+function evaluateRules(merchantApiKey, amount, location, timestamp, userHomeLocation) {
   return new Promise((resolve, reject) => {
     db.all(
       `SELECT * FROM Rules WHERE merchantApiKey = ? ORDER BY priority DESC`,
@@ -104,10 +104,13 @@ function evaluateRules(merchantApiKey, amount, location, timestamp) {
 
           // Check location condition (only if location is specified in rule)
           if (rule.location) {
+            // Special handling for HOME_LOCATION
+            const checkLocation = rule.location === 'HOME_LOCATION' ? userHomeLocation : rule.location;
+
             if (rule.condition === 'IS') {
-              conditionMet = conditionMet && (location === rule.location);
+              conditionMet = conditionMet && (location === checkLocation);
             } else if (rule.condition === 'NOT') {
-              conditionMet = conditionMet && (location !== rule.location);
+              conditionMet = conditionMet && (location !== checkLocation);
             }
           }
 
@@ -167,7 +170,7 @@ app.post('/api/processTransaction', async (req, res) => {
     }
 
     // Evaluate transaction rules
-    const ruleStatus = await evaluateRules(merchantApiKey, amount, location, new Date());
+    const ruleStatus = await evaluateRules(merchantApiKey, amount, location, new Date(), user.signUpLocation);
 
     await logMFAEvent(hashCC, amount, location, merchantApiKey, ruleStatus);
 

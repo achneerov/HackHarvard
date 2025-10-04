@@ -22,7 +22,7 @@ function SignIn() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!emailRegex.test(email)) {
@@ -32,10 +32,32 @@ function SignIn() {
 
     if (email && password) {
       setIsLoading(true);
-      setTimeout(() => {
-        localStorage.setItem('merchantAuth', 'true');
-        navigate('/dashboard');
-      }, 500);
+
+      try {
+        const response = await fetch('http://localhost:3001/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+
+        if (data.status === 1) { // SUCCESS
+          localStorage.setItem('merchantAuth', 'true');
+          localStorage.setItem('merchantApiKey', data.merchantApiKey);
+          localStorage.setItem('merchantEmail', data.email);
+          navigate('/dashboard');
+        } else {
+          setEmailError(data.message || 'Invalid credentials');
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        setEmailError('Failed to connect to server');
+        setIsLoading(false);
+      }
     }
   };
 
