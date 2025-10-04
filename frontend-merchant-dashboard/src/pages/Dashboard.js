@@ -165,7 +165,7 @@ function Dashboard() {
                   <Legend />
                   <Line type="monotone" dataKey="successful" stroke="#48bb78" strokeWidth={2} />
                   <Line type="monotone" dataKey="failed" stroke="#f56565" strokeWidth={2} />
-                  <Line type="monotone" dataKey="flagged" stroke="#ed8936" strokeWidth={2} />
+                  <Line type="monotone" dataKey="flagged" stroke="#eab308" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -184,7 +184,7 @@ function Dashboard() {
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
                       idx === 0 ? 'bg-yellow-100 text-yellow-700' :
                       idx === 1 ? 'bg-gray-200 text-gray-700' :
-                      idx === 2 ? 'bg-orange-100 text-orange-700' :
+                      idx === 2 ? 'bg-amber-100 text-amber-700' :
                       'bg-blue-100 text-blue-700'
                     }`}>
                       #{idx + 1}
@@ -208,7 +208,7 @@ function Dashboard() {
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-5">Top 3 Riskiest Customers</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-5">High-Risk Customer Alerts</h3>
           {dashboardData.customerStats && dashboardData.customerStats.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={dashboardData.customerStats
@@ -245,10 +245,10 @@ function Dashboard() {
                               <div className="text-xs text-green-700 font-medium">Successful</div>
                               <div className="text-base font-bold text-green-900">{data.success}</div>
                             </div>
-                            <div className="bg-orange-50 rounded-lg p-2 border border-orange-200">
+                            <div className="bg-yellow-50 rounded-lg p-2 border border-yellow-200">
                               <div className="text-xl mb-0.5">⚠</div>
-                              <div className="text-xs text-orange-700 font-medium">Auth Req.</div>
-                              <div className="text-base font-bold text-orange-900">{data.authRequired}</div>
+                              <div className="text-xs text-yellow-700 font-medium">Auth Req.</div>
+                              <div className="text-base font-bold text-yellow-900">{data.authRequired}</div>
                             </div>
                             <div className="bg-red-50 rounded-lg p-2 border border-red-200">
                               <div className="text-xl mb-0.5">✗</div>
@@ -278,8 +278,8 @@ function Dashboard() {
 
                         {/* Time Analysis & Consecutive Patterns - Combined */}
                         <div className="mb-3 grid grid-cols-2 gap-2">
-                          <div className="bg-purple-50 rounded-lg p-2.5 border border-purple-200">
-                            <h4 className="text-xs font-semibold text-purple-900 uppercase tracking-wide mb-1.5">Time Analysis</h4>
+                          <div className="bg-yellow-50 rounded-lg p-2.5 border border-yellow-200">
+                            <h4 className="text-xs font-semibold text-yellow-900 uppercase tracking-wide mb-1.5">Time Analysis</h4>
                             <div className="space-y-1 text-xs">
                               <div className="flex justify-between">
                                 <span className="text-gray-700">Auths:</span>
@@ -330,7 +330,7 @@ function Dashboard() {
                 }} wrapperStyle={{ zIndex: 9999 }} />
                 <Legend />
                 <Bar dataKey="success" fill="#48bb78" name="Successful" />
-                <Bar dataKey="authRequired" fill="#ed8936" name="Auth Required" />
+                <Bar dataKey="authRequired" fill="#eab308" name="Auth Required" />
                 <Bar dataKey="failed" fill="#f56565" name="Failed" />
               </BarChart>
             </ResponsiveContainer>
