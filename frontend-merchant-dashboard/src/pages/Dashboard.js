@@ -73,7 +73,10 @@ function Dashboard() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">Merchant Dashboard</h2>
+          <div className="flex items-center gap-3">
+            <img src="/veritas.png" alt="Veritas Logo" className="h-10 w-10" />
+            <h2 className="text-xl font-semibold text-gray-900">Veritas</h2>
+          </div>
           <div className="flex gap-2">
             <button onClick={() => navigate('/dashboard')} className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">Dashboard</button>
             <button onClick={() => navigate('/rules')} className="px-6 py-2.5 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">Rules</button>
@@ -158,7 +161,7 @@ function Dashboard() {
               </svg>
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Failure Rate</h3>
+              <h3 className="text-sm font-medium text-gray-600 mb-1">Denied Rate</h3>
               <p className="text-2xl font-bold text-gray-900">{dashboardData.totalTransactions > 0 ? ((dashboardData.statusCounts.failure / dashboardData.totalTransactions) * 100).toFixed(1) : 0}%</p>
               <span className="text-xs text-gray-600">{dashboardData.statusCounts.failure} failed</span>
             </div>
@@ -189,7 +192,7 @@ function Dashboard() {
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-5">Top Locations by Transactions</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-5">Top Locations by Risk</h3>
             {dashboardData.locationStats && dashboardData.locationStats.length > 0 ? (
               <div className="flex flex-col gap-3">
                 {dashboardData.locationStats.map((location, idx) => (
@@ -206,9 +209,23 @@ function Dashboard() {
                       <div className="font-semibold text-gray-900 text-sm">{location.location}</div>
                       <div className="text-xs text-gray-600">{location.transactions} transactions</div>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${location.flagged > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
-                      {location.flagged > 0 ? `${location.flagged} Auth Required` : '✓'}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      {location.flagged > 0 && (
+                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                          {location.flagged} Auth Required
+                        </span>
+                      )}
+                      {location.failed > 0 && (
+                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                          {location.failed} Denied
+                        </span>
+                      )}
+                      {location.flagged === 0 && location.failed === 0 && (
+                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                          ✓
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

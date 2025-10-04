@@ -219,7 +219,10 @@ function RulesManagement() {
     <div className="min-h-screen bg-white">
       <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-900">Merchant Dashboard</h2>
+          <div className="flex items-center gap-3">
+            <img src="/veritas.png" alt="Veritas Logo" className="h-10 w-10" />
+            <h2 className="text-xl font-semibold text-gray-900">Veritas</h2>
+          </div>
           <div className="flex gap-2">
             <button onClick={() => navigate('/dashboard')} className="px-6 py-2.5 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">Dashboard</button>
             <button onClick={() => navigate('/rules')} className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">Rules</button>

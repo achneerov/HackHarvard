@@ -1377,18 +1377,19 @@ app.get("/api/dashboard/stats", async (req, res) => {
       );
     });
 
-    // Get location distribution
+    // Get location distribution sorted by auth required + denied (denied weighted 2x)
     const locationStats = await new Promise((resolve, reject) => {
       db.all(
         `SELECT
           location,
           COUNT(*) as transactions,
           SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as flagged,
-          SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed
+          SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed,
+          (SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) + SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) * 2) as riskScore
          FROM MFAEvents
          WHERE merchantApiKey = ? ${timeFilter}
          GROUP BY location
-         ORDER BY transactions DESC
+         ORDER BY riskScore DESC, transactions DESC
          LIMIT 5`,
         [merchantApiKey],
         (err, rows) => {

@@ -104,6 +104,8 @@ db.serialize(() => {
 
   // Insert 50 users with realistic attributes and device info
   const users = [
+    // Special user with suspicious activity pattern - regular UK user with North Korea attack
+    ["hash_suspect", "james.wilson@britishbank.co.uk", "+447700900123", "enabled", "enabled", null, null, "London", "fp_uk_regular", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36", "MacIntel", "1920x1080", "Europe/London", "en-GB"],
     ["hash001", "user1@example.com", "+1234567890", "enabled", "enabled", "enabled", null, "New York", "fp_001a", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15", "iPhone", "390x844", "America/New_York", "en-US"],
     ["hash002", "user2@example.com", "+1987654321", "enabled", null, "enabled", null, "Los Angeles", "fp_002a", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36", "MacIntel", "2560x1600", "America/Los_Angeles", "en-US"],
     ["hash003", "user3@example.com", "+1555555555", null, "enabled", null, null, "Chicago", "fp_003a", "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36", "Linux armv8l", "1080x2400", "America/Chicago", "en-US"],
@@ -176,6 +178,7 @@ db.serialize(() => {
     "Las Vegas", "Atlanta", "Phoenix", "Sacramento", "Salt Lake City", "Albuquerque", "Paris"
   ];
   const userHashes = [
+    "hash_suspect", // Our special UK user
     "hash001", "hash002", "hash003", "hash004", "hash005", "hash006", "hash007", "hash008", "hash009", "hash010",
     "hash011", "hash012", "hash013", "hash014", "hash015", "hash016", "hash017", "hash018", "hash019", "hash020",
     "hash021", "hash022", "hash023", "hash024", "hash025", "hash026", "hash027", "hash028", "hash029", "hash030",
@@ -249,6 +252,73 @@ db.serialize(() => {
     transactionsByMonth.push(Math.max(150, baseCount + variance));
   }
 
+  // First, insert special events for our suspicious UK user
+  const suspiciousEvents = [];
+  const now = new Date();
+
+  // Regular daily 8am UK transactions for the past 30 days (except last Wednesday)
+  for (let daysAgo = 0; daysAgo < 30; daysAgo++) {
+    // Skip last Wednesday (7 days ago) - that's when the attack happened
+    if (daysAgo === 7) continue;
+
+    const eventDate = new Date(now);
+    eventDate.setDate(eventDate.getDate() - daysAgo);
+    eventDate.setHours(8, 0, 0, 0); // 8am
+
+    // Require auth every 5 days to ensure we have enough data points
+    let status = 1; // SUCCESS by default
+    const amount = (Math.random() * 500 + 50).toFixed(2);
+    if (daysAgo % 5 === 0) {
+      status = 2; // AUTH_REQUIRED every 5 days
+    }
+
+    suspiciousEvents.push({
+      cchash: "hash_suspect",
+      amount: amount,
+      location: "London",
+      status: status,
+      timestamp: eventDate.toISOString().replace("T", " ").substring(0, 19)
+    });
+  }
+
+  // Add the 15 suspicious North Korea attempts last Wednesday at 2am
+  const wednesdayAttack = new Date(now);
+  wednesdayAttack.setDate(wednesdayAttack.getDate() - 7); // 7 days ago
+  wednesdayAttack.setHours(2, 0, 0, 0); // 2am
+
+  for (let attempt = 0; attempt < 15; attempt++) {
+    const attackTime = new Date(wednesdayAttack);
+    attackTime.setMinutes(attempt * 3); // Space them 3 minutes apart
+
+    suspiciousEvents.push({
+      cchash: "hash_suspect",
+      amount: (Math.random() * 5000 + 1000).toFixed(2), // Large amounts £1000-£6000
+      location: "Pyongyang",
+      status: 0, // FAILURE (blocked)
+      timestamp: attackTime.toISOString().replace("T", " ").substring(0, 19)
+    });
+  }
+
+  // Insert all suspicious events
+  let suspiciousInserted = 0;
+  suspiciousEvents.forEach((evt, idx) => {
+    db.run(
+      `INSERT INTO MFAEvents (cchash, transactionAmount, location, merchantApiKey, status, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [evt.cchash, evt.amount, evt.location, "merchant_key_abc123", evt.status, evt.timestamp],
+      function (err) {
+        if (err) console.error(`Error inserting suspicious event ${idx + 1}:`, err);
+        else {
+          suspiciousInserted++;
+          if (suspiciousInserted === suspiciousEvents.length) {
+            console.log(`✓ Inserted ${suspiciousEvents.length} events for suspicious UK user`);
+          }
+        }
+      }
+    );
+  });
+
+  // Now insert regular transactions for other users
   let insertedCount = 0;
   for (let i = 0; i < totalTransactions; i++) {
     const cchash = userHashes[Math.floor(Math.random() * userHashes.length)];
