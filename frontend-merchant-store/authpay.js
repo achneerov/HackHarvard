@@ -308,24 +308,24 @@ const ensureAuthPayModal = () => {
         width: min(460px, calc(100% - 32px));
         border-radius: 24px;
         padding: 32px 28px 28px;
-        background: radial-gradient(circle at top left, rgba(118, 92, 184, 0.45), rgba(22, 15, 38, 0.95));
-        border: 1px solid rgba(174, 144, 245, 0.35);
-        box-shadow: 0 32px 60px rgba(4, 0, 24, 0.45);
-        color: #f0ecff;
+        background: #ffffff;
+        border: 1px solid #e5e7ef;
+        box-shadow: 0 28px 48px rgba(15, 23, 42, 0.16);
+        color: #1f2937;
         font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         position: relative;
       }
       .authpay-mfa-dialog:focus {
         outline: none;
-        box-shadow: 0 32px 60px rgba(4, 0, 24, 0.45), 0 0 0 2px rgba(174, 144, 245, 0.55);
+        box-shadow: 0 28px 48px rgba(15, 23, 42, 0.16), 0 0 0 2px rgba(99, 102, 241, 0.2);
       }
       .authpay-mfa-close {
         position: absolute;
         top: 18px;
         right: 18px;
         border: none;
-        background: rgba(240, 236, 255, 0.08);
-        color: #f0ecff;
+        background: #f3f4f6;
+        color: #1f2937;
         width: 34px;
         height: 34px;
         border-radius: 50%;
@@ -334,7 +334,7 @@ const ensureAuthPayModal = () => {
         transition: background 160ms ease, transform 160ms ease;
       }
       .authpay-mfa-close:hover {
-        background: rgba(240, 236, 255, 0.18);
+        background: #e5e7eb;
         transform: scale(1.05);
       }
       .authpay-mfa-chip {
@@ -343,23 +343,25 @@ const ensureAuthPayModal = () => {
         gap: 6px;
         padding: 6px 12px;
         border-radius: 999px;
-        background: rgba(174, 144, 245, 0.18);
-        border: 1px solid rgba(174, 144, 245, 0.35);
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
         font-size: 11px;
         letter-spacing: 0.24em;
         text-transform: uppercase;
+        color: #3730a3;
       }
       .authpay-mfa-heading {
         margin: 18px 0 10px;
         font-size: 26px;
         letter-spacing: 0.18em;
         text-transform: uppercase;
+        color: #1f2937;
       }
       .authpay-mfa-copy {
         margin: 0 0 24px;
         font-size: 13px;
         line-height: 1.6;
-        color: rgba(240, 236, 255, 0.78);
+        color: #4b5563;
       }
       .authpay-mfa-field {
         display: flex;
@@ -371,25 +373,25 @@ const ensureAuthPayModal = () => {
         font-size: 11px;
         letter-spacing: 0.28em;
         text-transform: uppercase;
-        color: rgba(240, 236, 255, 0.66);
+        color: #6b7280;
       }
       .authpay-mfa-select,
       .authpay-mfa-input {
-        border: 1px solid rgba(174, 144, 245, 0.35);
+        border: 1px solid #d1d5db;
         border-radius: 14px;
         padding: 12px 14px;
-        background: rgba(10, 8, 22, 0.78);
-        color: #f0ecff;
+        background: #ffffff;
+        color: #111827;
         font-size: 14px;
         letter-spacing: 0.08em;
       }
       .authpay-mfa-select:focus,
       .authpay-mfa-input:focus {
         outline: none;
-        box-shadow: 0 0 0 2px rgba(174, 144, 245, 0.45);
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
       }
       .authpay-mfa-input::placeholder {
-        color: rgba(240, 236, 255, 0.35);
+        color: #9ca3af;
       }
       .authpay-mfa-actions {
         display: flex;
@@ -407,18 +409,18 @@ const ensureAuthPayModal = () => {
         transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
       }
       .authpay-mfa-request {
-        background: linear-gradient(120deg, rgba(173, 143, 245, 0.95), rgba(124, 97, 198, 0.95));
-        color: #0c0416;
-        box-shadow: 0 16px 30px rgba(52, 30, 126, 0.45);
+        background: linear-gradient(120deg, #6366f1, #8b5cf6);
+        color: #ffffff;
+        box-shadow: 0 12px 24px rgba(79, 70, 229, 0.25);
       }
       .authpay-mfa-submit {
         background: transparent;
-        border: 1px solid rgba(174, 144, 245, 0.55);
-        color: #f0ecff;
+        border: 1px solid #d1d5db;
+        color: #1f2937;
       }
       .authpay-mfa-button:hover:not(:disabled) {
         transform: translateY(-1px);
-        box-shadow: 0 18px 36px rgba(52, 30, 126, 0.35);
+        box-shadow: 0 14px 28px rgba(79, 70, 229, 0.2);
       }
       .authpay-mfa-button:disabled {
         opacity: 0.35;
@@ -440,16 +442,16 @@ const ensureAuthPayModal = () => {
         display: block;
       }
       .authpay-mfa-status[data-type="info"] {
-        border-color: rgba(173, 143, 245, 0.45);
-        color: rgba(240, 236, 255, 0.78);
+        border-color: #c7d2fe;
+        color: #4338ca;
       }
       .authpay-mfa-status[data-type="success"] {
-        border-color: rgba(75, 214, 166, 0.45);
-        color: rgba(181, 246, 219, 0.9);
+        border-color: #bbf7d0;
+        color: #047857;
       }
       .authpay-mfa-status[data-type="failure"] {
-        border-color: rgba(242, 119, 145, 0.45);
-        color: rgba(254, 194, 208, 0.9);
+        border-color: #fecdd3;
+        color: #be123c;
       }
       .authpay-mfa-hidden {
         display: none !important;
