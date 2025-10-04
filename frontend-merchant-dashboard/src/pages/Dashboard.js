@@ -219,7 +219,7 @@ function Dashboard() {
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-5">Success Rate by Customer</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-5">Transaction Status by Customer</h3>
           {dashboardData.customerStats && dashboardData.customerStats.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={dashboardData.customerStats}>
@@ -229,6 +229,7 @@ function Dashboard() {
                 <Tooltip />
                 <Legend />
                 <Bar dataKey="success" fill="#48bb78" name="Successful" />
+                <Bar dataKey="authRequired" fill="#ed8936" name="Auth Required" />
                 <Bar dataKey="failed" fill="#f56565" name="Failed" />
               </BarChart>
             </ResponsiveContainer>
