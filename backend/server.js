@@ -50,6 +50,16 @@ const STATUS = {
   SIGN_UP_REQUIRED: 3,
 };
 
+// Helper function to generate random user ID
+function generateRandomUserId() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  let randomChars = '';
+  for (let i = 0; i < 4; i++) {
+    randomChars += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `user-${randomChars}`;
+}
+
 // Helper function to get enabled auth methods for a user
 function getEnabledAuthMethods(user) {
   const enabledMethods = [];
@@ -1145,7 +1155,7 @@ app.get("/api/dashboard/stats", async (req, res) => {
     const customerStats = await new Promise((resolve, reject) => {
       db.all(
         `SELECT
-          u.email as name,
+          u.email,
           SUM(CASE WHEN e.status = 1 THEN 1 ELSE 0 END) as success,
           SUM(CASE WHEN e.status = 0 THEN 1 ELSE 0 END) as failed,
           SUM(CASE WHEN e.status = 2 THEN 1 ELSE 0 END) as authRequired
@@ -1157,7 +1167,10 @@ app.get("/api/dashboard/stats", async (req, res) => {
         [merchantApiKey],
         (err, rows) => {
           if (err) reject(err);
-          else resolve(rows);
+          else resolve(rows.map(row => ({
+            ...row,
+            name: generateRandomUserId()
+          })));
         }
       );
     });
@@ -1166,7 +1179,7 @@ app.get("/api/dashboard/stats", async (req, res) => {
     const riskMetrics = await new Promise((resolve, reject) => {
       db.all(
         `SELECT
-          u.email as name,
+          u.email,
           e.cchash,
           SUM(CASE WHEN e.status = 1 THEN 1 ELSE 0 END) as success,
           SUM(CASE WHEN e.status = 0 THEN 1 ELSE 0 END) as failed,
@@ -1283,6 +1296,7 @@ app.get("/api/dashboard/stats", async (req, res) => {
 
               return {
                 ...row,
+                name: generateRandomUserId(),
                 maxConsecutiveFails,
                 maxConsecutiveSuccesses,
                 avgTimeBetweenAuths,
