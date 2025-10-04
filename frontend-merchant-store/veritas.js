@@ -15,6 +15,9 @@ const NUMERIC_STATUS = {
 const METHOD_LABELS = {
   email: 'Email One-Time Code',
   sms: 'Text Message',
+  otp: 'Authenticator App',
+  biometric: 'Biometric Verification',
+  hardwareToken: 'Hardware Token',
 };
 
 const DEFAULT_METHOD_OPTIONS = [
@@ -48,6 +51,9 @@ const mapMethod = (entry) => {
   if (typeof entry === 'number') {
     if (entry === 1) return { id: 'email', label: METHOD_LABELS.email };
     if (entry === 2) return { id: 'sms', label: METHOD_LABELS.sms };
+    if (entry === 3) return { id: 'otp', label: METHOD_LABELS.otp };
+    if (entry === 4) return { id: 'biometric', label: METHOD_LABELS.biometric };
+    if (entry === 5) return { id: 'hardwareToken', label: METHOD_LABELS.hardwareToken };
     return { id: `method-${entry}`, label: `Authentication Method ${entry}` };
   }
 

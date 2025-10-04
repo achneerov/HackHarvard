@@ -1,4 +1,3 @@
-import Veritas from '../veritas.js';
 import { formatCurrency } from './products.js';
 import {
   getCart,
@@ -7,13 +6,6 @@ import {
   saveOrder,
 } from './storage.js';
 import { generateDeviceFingerprint } from './deviceFingerprint.js';
-
-const backendConfig =
-  (typeof window !== 'undefined' && {
-    ...(window.VeritasConfig?.backend || window.VeritasConfig || {}),
-  }) || {};
-
-const veritasBackendClient = Veritas.createBackendClient(backendConfig);
 
 const form = document.getElementById('payment-form');
 const statusPanel = document.getElementById('payment-status');
@@ -27,29 +19,6 @@ const disableForm = (disabled) => {
     element.disabled = disabled;
   });
 };
-
-const PaymentUI = Veritas.createDefaultUI({
-  form,
-  statusElement: statusPanel,
-  hiddenClass: 'hidden',
-  baseStatusClass:
-    'mt-6 rounded-2xl border border-white/10 bg-black/40 p-6 text-sm',
-  statusClasses: {
-    info: 'text-champagne/80',
-    success: 'border-success/50 text-success',
-    failure: 'border-failure/50 text-failure',
-  },
-});
-
-const originalToggleProcessing = PaymentUI.toggleProcessing?.bind(PaymentUI);
-if (originalToggleProcessing) {
-  PaymentUI.toggleProcessing = (state) => {
-    originalToggleProcessing(state);
-    submitInFlight = state;
-  };
-}
-
-window.PaymentUI = PaymentUI;
 
 const renderSummary = () => {
   if (!summaryContainer || !grandTotalEl) return;
@@ -79,7 +48,7 @@ const renderSummary = () => {
   grandTotalEl.textContent = formatCurrency(total);
 };
 
-const buildPayload = async (formData) => {
+const buildPayload = async (formData, backendConfig = {}) => {
   const cart = getCart();
   const customer = getCustomerDetails();
   const rawCardNumber = formData.get('cardNumber') || '';
@@ -121,7 +90,7 @@ const buildPayload = async (formData) => {
   };
 };
 
-const handleResponse = (response) => {
+const handleResponse = (response, PaymentUI) => {
   if (!response) return;
   if (response.status === 'SUCCESS') {
     const order = {
@@ -133,49 +102,104 @@ const handleResponse = (response) => {
     clearCart();
     window.location.href = 'confirmation.html';
   } else if (response.status === 'FAILURE') {
-    PaymentUI.showStatus(
-      'failure',
-      response.reason || 'Transaction cancelled, please contact merchant.'
-    );
-    PaymentUI.toggleProcessing(false);
+    if (PaymentUI) {
+      PaymentUI.showStatus(
+        'failure',
+        response.reason || 'Transaction cancelled, please contact merchant.'
+      );
+      PaymentUI.toggleProcessing(false);
+    }
   } else if (response.status === 'AUTH_REQUIRED') {
-    PaymentUI.toggleProcessing(false);
+    if (PaymentUI) {
+      PaymentUI.toggleProcessing(false);
+    }
   }
 };
-
-const veritasIntegration = Veritas.enable({
-  ui: PaymentUI,
-  backend: veritasBackendClient,
-});
-
-window.VeritasIntegration = veritasIntegration;
-const processWithVeritas = veritasIntegration.processPayment;
 
 form?.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (submitInFlight) return;
 
-  PaymentUI.clearStatus();
-  PaymentUI.showStatus('info', 'Authorizing payment...');
-
   submitInFlight = true;
-  const formData = new FormData(form);
-  const payload = await buildPayload(formData);
 
-  try {
-    const response = await processWithVeritas(payload, PaymentUI);
-    handleResponse(response);
-    if (response?.status !== 'SUCCESS') {
+  // Check if merchantApiKey is defined at runtime
+  const hasMerchantKey = typeof window.merchantApiKey !== 'undefined' &&
+                         window.merchantApiKey &&
+                         window.merchantApiKey.trim() !== '';
+
+  console.log('merchantApiKey check:', {
+    defined: typeof window.merchantApiKey !== 'undefined',
+    value: window.merchantApiKey,
+    hasMerchantKey
+  });
+
+  if (hasMerchantKey) {
+    // Dynamically import and use Veritas MFA flow
+    try {
+      const VeritasModule = await import('../veritas.js');
+      const Veritas = VeritasModule.default;
+
+      const backendConfig = {
+        ...(window.VeritasConfig?.backend || window.VeritasConfig || {}),
+      };
+
+      const veritasBackendClient = Veritas.createBackendClient(backendConfig);
+
+      const PaymentUI = Veritas.createDefaultUI({
+        form,
+        statusElement: statusPanel,
+        hiddenClass: 'hidden',
+        baseStatusClass: 'mt-6 rounded-2xl border border-white/10 bg-black/40 p-6 text-sm',
+        statusClasses: {
+          info: 'text-champagne/80',
+          success: 'border-success/50 text-success',
+          failure: 'border-failure/50 text-failure',
+        },
+      });
+
+      const veritasIntegration = Veritas.enable({
+        ui: PaymentUI,
+        backend: veritasBackendClient,
+      });
+
+      PaymentUI.clearStatus();
+      PaymentUI.showStatus('info', 'Authorizing payment...');
+
+      const formData = new FormData(form);
+      const payload = await buildPayload(formData, backendConfig);
+
+      const response = await veritasIntegration.processPayment(payload, PaymentUI);
+      handleResponse(response, PaymentUI);
+
+      if (response?.status !== 'SUCCESS') {
+        submitInFlight = false;
+      }
+    } catch (error) {
+      console.error('Payment error', error);
+      if (statusPanel) {
+        statusPanel.classList.remove('hidden');
+        statusPanel.textContent = 'An unexpected error occurred. Please try again.';
+      }
       submitInFlight = false;
     }
-  } catch (error) {
-    console.error('Payment error', error);
-    PaymentUI.showStatus(
-      'failure',
-      'An unexpected error occurred. Please try again.'
-    );
-    PaymentUI.toggleProcessing(false);
-    submitInFlight = false;
+  } else {
+    // Skip MFA and go directly to completion page when no merchant key
+    if (statusPanel) {
+      statusPanel.classList.remove('hidden');
+      statusPanel.textContent = 'Processing payment...';
+    }
+
+    // Simulate a brief delay for better UX
+    setTimeout(() => {
+      const order = {
+        reference: `LB-${Date.now()}`,
+        total: grandTotalEl?.textContent,
+        timestamp: new Date().toISOString(),
+      };
+      saveOrder(order);
+      clearCart();
+      window.location.href = 'confirmation.html';
+    }, 500);
   }
 });
 
