@@ -524,12 +524,13 @@ app.get('/api/dashboard/stats', async (req, res) => {
         `SELECT
           u.email as name,
           SUM(CASE WHEN e.status = 1 THEN 1 ELSE 0 END) as success,
-          SUM(CASE WHEN e.status != 1 THEN 1 ELSE 0 END) as failed
+          SUM(CASE WHEN e.status = 0 THEN 1 ELSE 0 END) as failed,
+          SUM(CASE WHEN e.status = 2 THEN 1 ELSE 0 END) as authRequired
          FROM MFAEvents e
          JOIN Users u ON e.cchash = u.cchash
          WHERE e.merchantApiKey = ?
          GROUP BY u.email
-         ORDER BY (success + failed) DESC`,
+         ORDER BY (success + failed + authRequired) DESC`,
         [merchantApiKey],
         (err, rows) => {
           if (err) reject(err);
