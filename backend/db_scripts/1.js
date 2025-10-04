@@ -20,7 +20,13 @@ db.serialize(() => {
   db.run(`DROP TABLE IF EXISTS MFAEvents`);
   db.run(`DROP TABLE IF EXISTS Merchants`);
   db.run(`DROP TABLE IF EXISTS Users`);
-  db.run(`DELETE FROM sqlite_sequence`);
+  db.run(`DROP TABLE IF EXISTS PendingUsers`);
+  db.run(`DELETE FROM sqlite_sequence WHERE 1`, (err) => {
+    // Ignore error if table doesn't exist
+    if (err && !err.message.includes('no such table')) {
+      console.error('Error clearing sqlite_sequence:', err);
+    }
+  });
 
   // Users table
   db.run(`
