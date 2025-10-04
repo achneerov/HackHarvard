@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Louis Buitton | Veritas Checkout</title>
+  <title>Louis Buitton | Checkout</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -40,7 +40,7 @@
     <div class="mb-10">
       <p class="text-sm uppercase tracking-[0.5em] text-gold">Secure Checkout</p>
       <h1 class="mt-3 font-display text-3xl uppercase tracking-[0.3em]">Complete Your Maison Order</h1>
-      <p class="mt-4 max-w-2xl text-sm text-champagne/70">Veritas powers this elevated payment journey. Experience dynamic authentication, secure card hashing, and webhook-driven orchestration.</p>
+      <p class="mt-4 max-w-2xl text-sm text-champagne/70">Your payment information is encrypted and secure. Powered by Stripe.</p>
     </div>
 
     <div class="grid gap-10 md:grid-cols-[2fr,1fr]">
@@ -65,8 +65,7 @@
             <input id="cvv" name="cvv" inputmode="numeric" maxlength="4" required class="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-sm focus:border-gold focus:outline-none" placeholder="123" />
           </div>
         </div>
-        <p class="rounded-lg border border-white/10 bg-black/40 p-4 text-xs text-champagne/70">Veritas evaluates each payment through live backend policies. Depending on the risk assessment, your purchase may be instantly approved, declined, or paused for a verification code.</p>
-        <button type="submit" class="w-full rounded-full border border-gold bg-gold px-6 py-3 text-sm uppercase tracking-[0.3em] text-night transition hover:bg-transparent hover:text-gold">Authorize Payment</button>
+        <button type="submit" class="w-full rounded-full border border-gold bg-gold px-6 py-3 text-sm uppercase tracking-[0.3em] text-night transition hover:bg-transparent hover:text-gold">Complete Purchase</button>
       </form>
       <div id="payment-status" class="mt-6 hidden rounded-2xl border border-white/10 bg-black/40 p-6 text-sm text-champagne/80"></div>
     </section>
@@ -82,7 +81,7 @@
         </div>
         <div class="rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-champagne/70">
           <p class="uppercase tracking-[0.4em] text-gold">Security Notice</p>
-          <p class="mt-3">Card values are hashed client-side before Veritas orchestration. Webhook simulations demonstrate how merchants respond to Veritas signals.</p>
+          <p class="mt-3">Your payment information is encrypted and processed securely. We never store your full card details.</p>
         </div>
       </aside>
     </div>
@@ -92,7 +91,7 @@
     <div class="mx-auto flex max-w-4xl flex-col gap-8 px-6 py-12 md:flex-row md:justify-between">
       <div>
         <p class="text-lg font-display uppercase tracking-[0.4em]">Louis Buitton</p>
-        <p class="mt-3 text-sm text-champagne/70">Secure payments with grace, powered by Veritas.</p>
+        <p class="mt-3 text-sm text-champagne/70">Secure payments with grace.</p>
       </div>
       <div class="text-sm text-champagne/60">
         <p>Concierge Support</p>
@@ -101,34 +100,7 @@
     </div>
   </footer>
 
-  <script>
-    (function configureVeritas() {
-      try {
-        const LOCAL_API_PORT = '3001';
-        const isLocalHost =
-          window.location.hostname === 'localhost' ||
-          window.location.hostname === '127.0.0.1';
-        const origin = isLocalHost
-          ? `http://localhost:${LOCAL_API_PORT}`
-          : window.location.origin;
-        const trimTrailingSlash = (value) =>
-          typeof value === 'string' && value.endsWith('/')
-            ? value.slice(0, -1)
-            : value;
-        const baseOrigin = trimTrailingSlash(origin);
-        window.VeritasConfig = {
-          backend: {
-            baseUrl: `${baseOrigin}/api`,
-            merchantApiKey: 'merchant_key_abc123',
-            defaultLocation: 'Paris',
-            useCustomerLocation: false,
-          },
-        };
-      } catch (error) {
-        console.warn('Unable to configure Veritas defaults', error);
-      }
-    })();
-  </script>
+  <script type="module" src="./veritas.js"></script>
   <script type="module" src="./js/products.js"></script>
   <script type="module" src="./js/storage.js"></script>
   <script type="module" src="./js/paymentPage.js"></script>

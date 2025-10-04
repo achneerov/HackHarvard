@@ -1270,6 +1270,34 @@ const Veritas = {
 
 if (typeof window !== 'undefined') {
   window.Veritas = Veritas;
+
+  // Auto-configure Veritas if not already configured
+  if (!window.VeritasConfig) {
+    try {
+      const LOCAL_API_PORT = '3001';
+      const isLocalHost =
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1';
+      const origin = isLocalHost
+        ? `http://localhost:${LOCAL_API_PORT}`
+        : window.location.origin;
+      const trimTrailingSlash = (value) =>
+        typeof value === 'string' && value.endsWith('/')
+          ? value.slice(0, -1)
+          : value;
+      const baseOrigin = trimTrailingSlash(origin);
+      window.VeritasConfig = {
+        backend: {
+          baseUrl: `${baseOrigin}/api`,
+          merchantApiKey: 'merchant_key_abc123',
+          defaultLocation: 'Paris',
+          useCustomerLocation: false,
+        },
+      };
+    } catch (error) {
+      console.warn('Unable to configure Veritas defaults', error);
+    }
+  }
 }
 
 export default Veritas;
