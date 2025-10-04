@@ -401,6 +401,9 @@ const ensureVeritasModal = () => {
         gap: 8px;
         margin-bottom: 18px;
       }
+      .veritas-mfa-field--code {
+        margin-top: 16px;
+      }
       .veritas-mfa-label {
         font-size: 11px;
         letter-spacing: 0.28em;
@@ -449,6 +452,11 @@ const ensureVeritasModal = () => {
         background: transparent;
         border: 1px solid #d1d5db;
         color: #1f2937;
+      }
+      .veritas-mfa-submit.is-ready {
+        background: linear-gradient(120deg, #10b981, #059669);
+        border-color: #10b981;
+        color: #ffffff;
       }
       .veritas-mfa-button:hover:not(:disabled) {
         transform: translateY(-1px);
@@ -737,6 +745,14 @@ const ensureVeritasModal = () => {
       return;
     }
     runSafely(submitButton, () => currentHandlers.onSubmitCode(code));
+  });
+
+  codeInput.addEventListener('input', () => {
+    if (codeInput.value.trim().length === 6) {
+      submitButton.classList.add('is-ready');
+    } else {
+      submitButton.classList.remove('is-ready');
+    }
   });
 
   codeInput.addEventListener('keydown', (event) => {
