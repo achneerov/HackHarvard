@@ -190,6 +190,140 @@ function Dashboard() {
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-5">Top 3 Riskiest Customers</h3>
+          {dashboardData.customerStats && dashboardData.customerStats.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={dashboardData.customerStats
+                .map(customer => {
+                  const riskData = dashboardData.riskMetrics?.find(r => r.name === customer.name);
+                  const merged = { ...customer, ...riskData };
+                  // Ensure totalAttempts is the sum of all transaction types
+                  merged.totalAttempts = (merged.success || 0) + (merged.failed || 0) + (merged.authRequired || 0);
+                  return merged;
+                })
+                .sort((a, b) => (b.authRequired + b.failed) - (a.authRequired + a.failed))
+                .slice(0, 3)}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    console.log('Tooltip data:', data);
+                    return (
+                      <div className="bg-white p-4 border-2 border-gray-300 rounded-xl shadow-2xl max-w-md z-50 relative" style={{ zIndex: 9999 }}>
+                        {/* Header */}
+                        <div className="mb-3 pb-2 border-b-2 border-gray-200">
+                          <p className="font-bold text-base text-gray-900">{data.name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Customer Risk Analysis</p>
+                        </div>
+
+                        {/* Transaction Status Summary */}
+                        <div className="mb-3">
+                          <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Transaction Summary</h4>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="bg-green-50 rounded-lg p-2 border border-green-200">
+                              <div className="text-xl mb-0.5">✓</div>
+                              <div className="text-xs text-green-700 font-medium">Successful</div>
+                              <div className="text-base font-bold text-green-900">{data.success}</div>
+                            </div>
+                            <div className="bg-orange-50 rounded-lg p-2 border border-orange-200">
+                              <div className="text-xl mb-0.5">⚠</div>
+                              <div className="text-xs text-orange-700 font-medium">Auth Req.</div>
+                              <div className="text-base font-bold text-orange-900">{data.authRequired}</div>
+                            </div>
+                            <div className="bg-red-50 rounded-lg p-2 border border-red-200">
+                              <div className="text-xl mb-0.5">✗</div>
+                              <div className="text-xs text-red-700 font-medium">Failed</div>
+                              <div className="text-base font-bold text-red-900">{data.failed}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Activity Metrics */}
+                        <div className="mb-3 bg-blue-50 rounded-lg p-3 border border-blue-200">
+                          <h4 className="text-xs font-semibold text-blue-900 uppercase tracking-wide mb-2">Activity Metrics</h4>
+                          <div className="space-y-1.5 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-700">Total Attempts:</span>
+                              <span className="font-semibold text-gray-900">{data.totalAttempts || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-700">Locations:</span>
+                              <span className="font-semibold text-gray-900">{data.locationCount || 0}</span>
+                            </div>
+                            <div className="text-xs text-gray-600 bg-white rounded p-1.5 mt-1.5">
+                              {data.locations || 'No locations'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Time Analysis & Consecutive Patterns - Combined */}
+                        <div className="mb-3 grid grid-cols-2 gap-2">
+                          <div className="bg-purple-50 rounded-lg p-2.5 border border-purple-200">
+                            <h4 className="text-xs font-semibold text-purple-900 uppercase tracking-wide mb-1.5">Time Analysis</h4>
+                            <div className="space-y-1 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-gray-700">Auths:</span>
+                                <span className="font-semibold text-gray-900">{data.avgTimeBetweenAuths || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-700">Fails:</span>
+                                <span className="font-semibold text-gray-900">{data.avgTimeBetweenFails || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-200">
+                            <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-1.5">Consecutive</h4>
+                            <div className="space-y-1 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-gray-700">Max Fails:</span>
+                                <span className="font-bold text-red-600">{data.maxConsecutiveFails !== undefined ? data.maxConsecutiveFails : 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-700">Max Success:</span>
+                                <span className="font-bold text-green-600">{data.maxConsecutiveSuccesses !== undefined ? data.maxConsecutiveSuccesses : 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Recent Activity */}
+                        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 border border-gray-300">
+                          <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-2">Recent Activity</h4>
+                          <div className="space-y-1 text-xs">
+                            {data.recentTimestamps && data.recentTimestamps.length > 0 ? (
+                              data.recentTimestamps.map((ts, idx) => (
+                                <div key={idx} className="flex items-center gap-1.5 text-gray-700">
+                                  <span className="text-blue-500 text-xs">●</span>
+                                  <span>{ts}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-gray-500 text-center py-1">No recent activity</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }} wrapperStyle={{ zIndex: 9999 }} />
+                <Legend />
+                <Bar dataKey="success" fill="#48bb78" name="Successful" />
+                <Bar dataKey="authRequired" fill="#ed8936" name="Auth Required" />
+                <Bar dataKey="failed" fill="#f56565" name="Failed" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              No customer data available
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-5">Failed Transaction Locations</h3>
           {dashboardData.locationStats && dashboardData.locationStats.filter(loc => loc.failed > 0).length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -216,76 +350,6 @@ function Dashboard() {
                 <div className="text-2xl mb-2">✓</div>
                 <div className="text-sm font-medium text-green-700">No failed transactions from any location</div>
               </div>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-5">Top 3 Riskiest Customers</h3>
-          {dashboardData.customerStats && dashboardData.customerStats.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dashboardData.customerStats
-                .map(customer => {
-                  const riskData = dashboardData.riskMetrics?.find(r => r.name === customer.name);
-                  return { ...customer, ...riskData };
-                })
-                .sort((a, b) => (b.authRequired + b.failed) - (a.authRequired + a.failed))
-                .slice(0, 3)}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    console.log('Tooltip data:', data);
-                    return (
-                      <div className="bg-white p-4 border-2 border-gray-200 rounded-lg shadow-lg max-w-sm z-50 relative" style={{ zIndex: 9999 }}>
-                        <p className="font-bold text-gray-900 mb-3 border-b pb-2">{data.name}</p>
-                        <div className="space-y-2 text-sm">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="text-green-700">✓ Successful:</div>
-                            <div className="font-semibold">{data.success}</div>
-                            <div className="text-orange-700">⚠ Auth Required:</div>
-                            <div className="font-semibold">{data.authRequired}</div>
-                            <div className="text-red-700">✗ Failed:</div>
-                            <div className="font-semibold">{data.failed}</div>
-                          </div>
-                          <hr className="my-2" />
-                          <div className="space-y-1">
-                            <div><span className="font-medium">Total Attempts:</span> {data.totalAttempts || 'N/A'}</div>
-                            <div><span className="font-medium">Countries ({data.countryCount || 0}):</span> {data.countries || 'N/A'}</div>
-                            <div><span className="font-medium">Avg Time Between Auths:</span> {data.avgTimeBetweenAuths || 'N/A'}</div>
-                            <div><span className="font-medium">Avg Time Between Fails:</span> {data.avgTimeBetweenFails || 'N/A'}</div>
-                            <div><span className="font-medium">Max Consecutive Fails:</span> {data.maxConsecutiveFails !== undefined ? data.maxConsecutiveFails : 'N/A'}</div>
-                            <div><span className="font-medium">Max Consecutive Success:</span> {data.maxConsecutiveSuccesses !== undefined ? data.maxConsecutiveSuccesses : 'N/A'}</div>
-                            <div className="pt-2 border-t mt-2">
-                              <div className="font-medium mb-1">Top 3 Recent Timestamps:</div>
-                              <div className="text-xs text-gray-600 space-y-0.5">
-                                {data.recentTimestamps && data.recentTimestamps.length > 0 ? (
-                                  data.recentTimestamps.map((ts, idx) => (
-                                    <div key={idx}>• {ts}</div>
-                                  ))
-                                ) : (
-                                  <div>No timestamps available</div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                }} wrapperStyle={{ zIndex: 9999 }} />
-                <Legend />
-                <Bar dataKey="success" fill="#48bb78" name="Successful" />
-                <Bar dataKey="authRequired" fill="#ed8936" name="Auth Required" />
-                <Bar dataKey="failed" fill="#f56565" name="Failed" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-gray-500">
-              No customer data available
             </div>
           )}
         </div>

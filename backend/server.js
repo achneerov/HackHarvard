@@ -1114,8 +1114,8 @@ app.get("/api/dashboard/stats", async (req, res) => {
           SUM(CASE WHEN e.status = 0 THEN 1 ELSE 0 END) as failed,
           SUM(CASE WHEN e.status = 2 THEN 1 ELSE 0 END) as authRequired,
           COUNT(*) as totalAttempts,
-          COUNT(DISTINCT e.location) as countryCount,
-          GROUP_CONCAT(DISTINCT e.location) as countries
+          COUNT(DISTINCT e.location) as locationCount,
+          GROUP_CONCAT(DISTINCT e.location) as locations
          FROM MFAEvents e
          JOIN Users u ON e.cchash = u.cchash
          WHERE e.merchantApiKey = ? ${timeFilter}
@@ -1220,7 +1220,7 @@ app.get("/api/dashboard/stats", async (req, res) => {
                 failureRate * 50 +
                   authRate * 30 +
                   maxConsecutiveFails * 5 +
-                  (row.countryCount > 3 ? 15 : 0)
+                  (row.locationCount > 3 ? 15 : 0)
               );
 
               return {
