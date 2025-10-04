@@ -3,6 +3,10 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -257,9 +261,60 @@ app.post('/api/requestCode', async (req, res) => {
       );
     });
 
-    // TODO: Send code via selected method (email, SMS, etc.)
-    // For now, we'll just log it (in production, integrate with email/SMS service)
+    // Send code via selected auth method
     console.log(`[AUTH CODE] User: ${hashCC}, Method: ${authMode}, Code: ${code}`);
+
+    switch(authMode) {
+      case AUTH_METHODS.email:
+        console.log(`[EMAIL] Sending code to ${user.email}: ${code}`);
+        try {
+          const msg = {
+            to: user.email,
+            from: 'Veritas@mystaticsite.com',
+            subject: 'Your AuthPay Verification Code',
+            text: `Your verification code is: ${code}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2>AuthPay Verification</h2>
+                <p>Your verification code is:</p>
+                <h1 style="color: #4F46E5; letter-spacing: 5px;">${code}</h1>
+                <p>This code will expire in 10 minutes.</p>
+                <p style="color: #6B7280; font-size: 12px;">If you didn't request this code, please ignore this email.</p>
+              </div>
+            `,
+          };
+          await sgMail.send(msg);
+          console.log(`[EMAIL] Successfully sent code to ${user.email}`);
+        } catch (emailError) {
+          console.error(`[EMAIL] Failed to send email:`, emailError);
+          // Don't fail the request if email fails, code is still stored
+        }
+        break;
+
+      case AUTH_METHODS.phone:
+        console.log(`[SMS] Sending code to ${user.phone}: ${code}`);
+        // TODO: Integrate with SMS service (Twilio, AWS SNS, etc.)
+        break;
+
+      case AUTH_METHODS.otp:
+        console.log(`[OTP] User should use authenticator app for: ${user.email}`);
+        // TODO: OTP apps generate their own codes using TOTP algorithm
+        break;
+
+      case AUTH_METHODS.biometric:
+        console.log(`[BIOMETRIC] Requesting biometric auth for: ${user.email}`);
+        // TODO: Trigger biometric verification on user's device
+        break;
+
+      case AUTH_METHODS.hardwareToken:
+        console.log(`[HARDWARE TOKEN] User should use hardware token for: ${user.email}`);
+        // TODO: Hardware tokens generate their own codes
+        break;
+
+      default:
+        console.log(`[UNKNOWN AUTH METHOD] Method ${authMode} not recognized`);
+        break;
+    }
 
     res.json({
       status: STATUS.SUCCESS,
