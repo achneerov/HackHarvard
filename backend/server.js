@@ -437,17 +437,44 @@ app.delete('/api/rules/:id', async (req, res) => {
 
 // Endpoint 9: Get Dashboard Stats
 app.get('/api/dashboard/stats', async (req, res) => {
-  const { merchantApiKey } = req.query;
+  const { merchantApiKey, timePeriod = 'all' } = req.query;
 
   try {
     if (!merchantApiKey) {
       return res.status(400).json({ status: STATUS.FAILURE, message: 'Merchant API key required' });
     }
 
+    // Calculate time filter based on timePeriod
+    let timeFilter = '';
+    let timelineFilter = '';
+    switch (timePeriod) {
+      case 'day':
+        timeFilter = "AND timestamp >= datetime('now', '-1 day')";
+        timelineFilter = "AND timestamp >= datetime('now', '-1 day')";
+        break;
+      case 'week':
+        timeFilter = "AND timestamp >= datetime('now', '-7 days')";
+        timelineFilter = "AND timestamp >= datetime('now', '-7 days')";
+        break;
+      case 'month':
+        timeFilter = "AND timestamp >= datetime('now', '-30 days')";
+        timelineFilter = "AND timestamp >= datetime('now', '-30 days')";
+        break;
+      case 'year':
+        timeFilter = "AND timestamp >= datetime('now', '-365 days')";
+        timelineFilter = "AND timestamp >= datetime('now', '-365 days')";
+        break;
+      case 'all':
+      default:
+        timeFilter = '';
+        timelineFilter = "AND timestamp >= datetime('now', '-7 days')";
+        break;
+    }
+
     // Get total transactions
     const totalTransactions = await new Promise((resolve, reject) => {
       db.get(
-        'SELECT COUNT(*) as count FROM MFAEvents WHERE merchantApiKey = ?',
+        `SELECT COUNT(*) as count FROM MFAEvents WHERE merchantApiKey = ? ${timeFilter}`,
         [merchantApiKey],
         (err, row) => {
           if (err) reject(err);
@@ -460,7 +487,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
     const statusCounts = await new Promise((resolve, reject) => {
       db.all(
         `SELECT status, COUNT(*) as count FROM MFAEvents
-         WHERE merchantApiKey = ?
+         WHERE merchantApiKey = ? ${timeFilter}
          GROUP BY status`,
         [merchantApiKey],
         (err, rows) => {
@@ -478,7 +505,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
       );
     });
 
-    // Get transaction timeline (last 7 days)
+    // Get transaction timeline
     const timeline = await new Promise((resolve, reject) => {
       db.all(
         `SELECT
@@ -487,7 +514,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
           SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed,
           SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as flagged
          FROM MFAEvents
-         WHERE merchantApiKey = ? AND timestamp >= datetime('now', '-7 days')
+         WHERE merchantApiKey = ? ${timelineFilter}
          GROUP BY DATE(timestamp)
          ORDER BY date ASC`,
         [merchantApiKey],
@@ -504,9 +531,10 @@ app.get('/api/dashboard/stats', async (req, res) => {
         `SELECT
           location,
           COUNT(*) as transactions,
-          SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as flagged
+          SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as flagged,
+          SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed
          FROM MFAEvents
-         WHERE merchantApiKey = ?
+         WHERE merchantApiKey = ? ${timeFilter}
          GROUP BY location
          ORDER BY transactions DESC
          LIMIT 5`,
@@ -527,7 +555,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
           SUM(CASE WHEN e.status != 1 THEN 1 ELSE 0 END) as failed
          FROM MFAEvents e
          JOIN Users u ON e.cchash = u.cchash
-         WHERE e.merchantApiKey = ?
+         WHERE e.merchantApiKey = ? ${timeFilter}
          GROUP BY u.email
          ORDER BY (success + failed) DESC`,
         [merchantApiKey],

@@ -18,7 +18,7 @@ function Dashboard() {
       }
 
       try {
-        const response = await fetch(`http://localhost:3001/api/dashboard/stats?merchantApiKey=${merchantApiKey}`);
+        const response = await fetch(`http://localhost:3001/api/dashboard/stats?merchantApiKey=${merchantApiKey}&timePeriod=${timePeriod}`);
         const data = await response.json();
 
         if (data.status === 1) {
@@ -34,7 +34,7 @@ function Dashboard() {
     };
 
     fetchDashboardData();
-  }, [navigate]);
+  }, [navigate, timePeriod]);
 
   const handleLogout = () => {
     localStorage.removeItem('merchantAuth');
