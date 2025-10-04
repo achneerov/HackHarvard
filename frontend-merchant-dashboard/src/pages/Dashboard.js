@@ -6,7 +6,7 @@ function Dashboard() {
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [timePeriod, setTimePeriod] = useState('all');
+  const [timePeriod, setTimePeriod] = useState('month');
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -86,12 +86,22 @@ function Dashboard() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Transaction Overview</h1>
             <p className="text-gray-600">Monitor your merchant transactions and authentication events</p>
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Time Period:</label>
+          <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-xl transition-all">
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <div className="border-r border-gray-300 pr-3">
+              <label className="text-xs font-medium text-gray-500 block">Time Period</label>
+            </div>
             <select
               value={timePeriod}
               onChange={(e) => setTimePeriod(e.target.value)}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+              className="bg-transparent border-none focus:outline-none focus:ring-0 text-base font-semibold text-gray-900 cursor-pointer appearance-none pr-8 bg-no-repeat bg-right"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                backgroundSize: '1.25rem',
+                backgroundPosition: 'right center'
+              }}
             >
               <option value="day">Last Day</option>
               <option value="week">Last Week</option>
