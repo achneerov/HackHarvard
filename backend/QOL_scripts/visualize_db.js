@@ -6,8 +6,8 @@ const { exec } = require('child_process');
 const dbPath = path.join(__dirname, '../database.db');
 const db = new sqlite3.Database(dbPath);
 
-// Get all tables
-db.all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", async (err, tables) => {
+// Get all tables (exclude sqlite_sequence)
+db.all("SELECT name FROM sqlite_master WHERE type='table' AND name != 'sqlite_sequence' ORDER BY name", async (err, tables) => {
   if (err) {
     console.error('Error fetching tables:', err);
     db.close();
