@@ -168,7 +168,7 @@ function SignIn() {
       <footer className="absolute bottom-0 left-0 right-0 bg-transparent">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex justify-center items-center text-xs text-gray-500">
-            <p>&copy; 2025 AuthPay. All rights reserved.</p>
+            <p>&copy; 2025 Veritas. All rights reserved.</p>
           </div>
         </div>
       </footer>

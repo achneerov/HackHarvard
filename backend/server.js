@@ -84,7 +84,7 @@ function logMFAEvent(
         ? STATUS.AUTH_REQUIRED
         : STATUS.FAILURE;
     console.warn(
-      "[AuthPay] logMFAEvent received unsupported status. Coercing value.",
+      "[Veritas] logMFAEvent received unsupported status. Coercing value.",
       {
         requestedStatus: status,
         persistedStatus,
@@ -214,7 +214,7 @@ app.post("/api/processTransaction", async (req, res) => {
     });
 
     if (!merchantExists) {
-      console.warn("[AuthPay] processTransaction denied: invalid merchant", {
+      console.warn("[Veritas] processTransaction denied: invalid merchant", {
         merchantApiKey,
         hashCC,
         amount,
@@ -242,7 +242,7 @@ app.post("/api/processTransaction", async (req, res) => {
     });
 
     if (!user) {
-      console.warn("[AuthPay] processTransaction denied: user not found", {
+      console.warn("[Veritas] processTransaction denied: user not found", {
         merchantApiKey,
         hashCC,
         amount,
@@ -273,7 +273,7 @@ app.post("/api/processTransaction", async (req, res) => {
     await logMFAEvent(hashCC, amount, location, merchantApiKey, ruleStatus);
 
     if (ruleStatus === STATUS.SUCCESS) {
-      console.log("[AuthPay] processTransaction approved", {
+      console.log("[Veritas] processTransaction approved", {
         merchantApiKey,
         hashCC,
         amount,
@@ -285,7 +285,7 @@ app.post("/api/processTransaction", async (req, res) => {
       });
     } else if (ruleStatus === STATUS.AUTH_REQUIRED) {
       const authMethods = getEnabledAuthMethods(user);
-      console.log("[AuthPay] processTransaction requires additional auth", {
+      console.log("[Veritas] processTransaction requires additional auth", {
         merchantApiKey,
         hashCC,
         amount,
@@ -298,7 +298,7 @@ app.post("/api/processTransaction", async (req, res) => {
         authMethods,
       });
     } else {
-      console.warn("[AuthPay] processTransaction denied by rules", {
+      console.warn("[Veritas] processTransaction denied by rules", {
         merchantApiKey,
         hashCC,
         amount,
@@ -359,11 +359,11 @@ app.post("/api/requestCode", async (req, res) => {
             const msg = {
               to: user.email,
               from: "Veritas@mystaticsite.com",
-              subject: "Your AuthPay Verification Code",
+              subject: "Your Veritas Verification Code",
               text: `Your verification code is: ${code}`,
               html: `
               <div style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>AuthPay Verification</h2>
+                <h2>Veritas Verification</h2>
                 <p>Your verification code is:</p>
                 <h1 style="color: #4F46E5; letter-spacing: 5px;">${code}</h1>
                 <p>This code will expire in 10 minutes.</p>
@@ -462,11 +462,11 @@ app.post("/api/requestCode", async (req, res) => {
         const msg = {
           to: email,
           from: "Veritas@mystaticsite.com",
-          subject: "Your AuthPay Verification Code - Sign Up",
+          subject: "Your Veritas Verification Code - Sign Up",
           text: `Your verification code is: ${code}`,
           html: `
             <div style="font-family: Arial, sans-serif; padding: 20px;">
-              <h2>Welcome to AuthPay!</h2>
+              <h2>Welcome to Veritas!</h2>
               <p>Your verification code is:</p>
               <h1 style="color: #4F46E5; letter-spacing: 5px;">${code}</h1>
               <p>This code will expire in 10 minutes.</p>
@@ -655,7 +655,7 @@ app.post("/api/registerUser", async (req, res) => {
     const resolvedLocation =
       location || pendingUser?.location || existingUser?.signUpLocation || null;
 
-    console.log('[AuthPay] registerUser location resolution:', {
+    console.log('[Veritas] registerUser location resolution:', {
       providedLocation: location,
       pendingUserLocation: pendingUser?.location,
       existingUserLocation: existingUser?.signUpLocation,
@@ -693,7 +693,7 @@ app.post("/api/registerUser", async (req, res) => {
     const transactionLocation = resolvedLocation;
     const userHomeLocation = userRecord?.signUpLocation || resolvedLocation;
 
-    console.log('[AuthPay] registerUser rule evaluation:', {
+    console.log('[Veritas] registerUser rule evaluation:', {
       transactionLocation,
       userHomeLocation,
       amount: numericAmount
@@ -729,7 +729,7 @@ app.post("/api/registerUser", async (req, res) => {
     }
 
     if (ruleStatus === STATUS.FAILURE) {
-      console.warn("[AuthPay] registerUser denied by rules", {
+      console.warn("[Veritas] registerUser denied by rules", {
         merchantApiKey,
         hashCC,
         amount: numericAmount,
@@ -741,7 +741,7 @@ app.post("/api/registerUser", async (req, res) => {
       });
     }
 
-    console.log("[AuthPay] registerUser approved", {
+    console.log("[Veritas] registerUser approved", {
       merchantApiKey,
       hashCC,
       amount: numericAmount,

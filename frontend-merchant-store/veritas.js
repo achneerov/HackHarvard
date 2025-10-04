@@ -33,7 +33,7 @@ const normalizeStatus = (status) => {
 
 const resolveWindowConfig = () => {
   if (typeof window === 'undefined') return {};
-  const raw = window.AuthPayConfig || window.authPayConfig || {};
+  const raw = window.VeritasConfig || window.veritasConfig || {};
   return raw.backend || raw;
 };
 
@@ -65,7 +65,7 @@ const mapMethod = (entry) => {
       return { id: normalizedId, label: entry.label || METHOD_LABELS[normalizedId] };
     }
     return {
-      id: normalizedId || 'authpay-method',
+      id: normalizedId || 'veritas-method',
       label: entry.label || `Verification via ${normalizedId || 'method'}`,
     };
   }
@@ -81,7 +81,7 @@ const convertMethods = (methods) =>
 const ensureFetch = (fetchImpl) => {
   if (fetchImpl) return fetchImpl;
   if (typeof fetch === 'function') return fetch.bind(globalThis);
-  throw new Error('AuthPay: Fetch API is not available in this environment.');
+  throw new Error('Veritas: Fetch API is not available in this environment.');
 };
 
 const normalizeTransactionResponse = (payload = {}) => {
@@ -142,7 +142,7 @@ const createBackendClient = (options = {}) => {
       try {
         data = JSON.parse(text);
       } catch (error) {
-        data = { message: 'Invalid response format from AuthPay server.' };
+        data = { message: 'Invalid response format from Veritas server.' };
       }
     }
     if (!response.ok) {
@@ -176,10 +176,10 @@ const createBackendClient = (options = {}) => {
     })();
     const apiKey = payload.merchantApiKey || merchantApiKey;
 
-    if (!hashCC) throw new Error('AuthPay: Missing `ccHash` in payload.');
-    if (amount == null) throw new Error('AuthPay: Missing `amount` in payload.');
-    if (!apiKey) throw new Error('AuthPay: Missing `merchantApiKey`.');
-    if (!emailAddress) throw new Error('AuthPay: Missing `emailAddress`.');
+    if (!hashCC) throw new Error('Veritas: Missing `ccHash` in payload.');
+    if (amount == null) throw new Error('Veritas: Missing `amount` in payload.');
+    if (!apiKey) throw new Error('Veritas: Missing `merchantApiKey`.');
+    if (!emailAddress) throw new Error('Veritas: Missing `emailAddress`.');
 
     const requestBody = {
       hashCC,
@@ -221,8 +221,8 @@ const createBackendClient = (options = {}) => {
       };
     },
     async requestCode({ ccHash, method, email, phone, merchantApiKey: overrideKey, location } = {}) {
-      if (!ccHash) throw new Error('AuthPay: Missing `ccHash` when requesting a code.');
-      if (!method) throw new Error('AuthPay: Missing `method` when requesting a code.');
+      if (!ccHash) throw new Error('Veritas: Missing `ccHash` when requesting a code.');
+      if (!method) throw new Error('Veritas: Missing `method` when requesting a code.');
       const body = {
         hashCC: ccHash,
         authMode: method,
@@ -236,8 +236,8 @@ const createBackendClient = (options = {}) => {
       return normalizeRequestResponse(data);
     },
     async verifyMfa({ ccHash, code } = {}) {
-      if (!ccHash) throw new Error('AuthPay: Missing `ccHash` when verifying MFA.');
-      if (!code) throw new Error('AuthPay: Missing `code` when verifying MFA.');
+      if (!ccHash) throw new Error('Veritas: Missing `ccHash` when verifying MFA.');
+      if (!code) throw new Error('Veritas: Missing `code` when verifying MFA.');
       const data = await post('/verifyMFA', { hashCC: ccHash, code });
       return normalizeRequestResponse(data);
     },
@@ -249,12 +249,12 @@ const createBackendClient = (options = {}) => {
       merchantApiKey: overrideKey,
       amount,
     } = {}) {
-      if (!ccHash) throw new Error('AuthPay: Missing `ccHash` when completing sign-up.');
-      if (!email) throw new Error('AuthPay: Missing `email` when completing sign-up.');
-      if (!phone) throw new Error('AuthPay: Missing `phone` when completing sign-up.');
+      if (!ccHash) throw new Error('Veritas: Missing `ccHash` when completing sign-up.');
+      if (!email) throw new Error('Veritas: Missing `email` when completing sign-up.');
+      if (!phone) throw new Error('Veritas: Missing `phone` when completing sign-up.');
       const keyToUse = overrideKey || merchantApiKey;
-      if (!keyToUse) throw new Error('AuthPay: Missing `merchantApiKey` when completing sign-up.');
-      if (amount == null) throw new Error('AuthPay: Missing `amount` when completing sign-up.');
+      if (!keyToUse) throw new Error('Veritas: Missing `merchantApiKey` when completing sign-up.');
+      if (amount == null) throw new Error('Veritas: Missing `amount` when completing sign-up.');
 
       const body = {
         hashCC: ccHash,
@@ -283,15 +283,15 @@ const getDefaultBackend = () => {
   return memoizedDefaultBackend;
 };
 
-const ensureAuthPayModal = () => {
-  if (window.AuthPayModal) return window.AuthPayModal;
+const ensureVeritasModal = () => {
+  if (window.VeritasModal) return window.VeritasModal;
 
-  const styleId = 'authpay-mfa-styles';
+  const styleId = 'veritas-mfa-styles';
   if (!document.getElementById(styleId)) {
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent = `
-      .authpay-mfa-overlay {
+      .veritas-mfa-overlay {
         position: fixed;
         inset: 0;
         display: none;
@@ -301,10 +301,10 @@ const ensureAuthPayModal = () => {
         backdrop-filter: blur(8px);
         z-index: 9999;
       }
-      .authpay-mfa-overlay.is-visible {
+      .veritas-mfa-overlay.is-visible {
         display: flex;
       }
-      .authpay-mfa-dialog {
+      .veritas-mfa-dialog {
         width: min(460px, calc(100% - 32px));
         border-radius: 24px;
         padding: 32px 28px 28px;
@@ -315,11 +315,11 @@ const ensureAuthPayModal = () => {
         font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         position: relative;
       }
-      .authpay-mfa-dialog:focus {
+      .veritas-mfa-dialog:focus {
         outline: none;
         box-shadow: 0 28px 48px rgba(15, 23, 42, 0.16), 0 0 0 2px rgba(99, 102, 241, 0.2);
       }
-      .authpay-mfa-close {
+      .veritas-mfa-close {
         position: absolute;
         top: 18px;
         right: 18px;
@@ -333,11 +333,11 @@ const ensureAuthPayModal = () => {
         cursor: pointer;
         transition: background 160ms ease, transform 160ms ease;
       }
-      .authpay-mfa-close:hover {
+      .veritas-mfa-close:hover {
         background: #e5e7eb;
         transform: scale(1.05);
       }
-      .authpay-mfa-chip {
+      .veritas-mfa-chip {
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -350,33 +350,33 @@ const ensureAuthPayModal = () => {
         text-transform: uppercase;
         color: #3730a3;
       }
-      .authpay-mfa-heading {
+      .veritas-mfa-heading {
         margin: 18px 0 10px;
         font-size: 26px;
         letter-spacing: 0.18em;
         text-transform: uppercase;
         color: #1f2937;
       }
-      .authpay-mfa-copy {
+      .veritas-mfa-copy {
         margin: 0 0 24px;
         font-size: 13px;
         line-height: 1.6;
         color: #4b5563;
       }
-      .authpay-mfa-field {
+      .veritas-mfa-field {
         display: flex;
         flex-direction: column;
         gap: 8px;
         margin-bottom: 18px;
       }
-      .authpay-mfa-label {
+      .veritas-mfa-label {
         font-size: 11px;
         letter-spacing: 0.28em;
         text-transform: uppercase;
         color: #6b7280;
       }
-      .authpay-mfa-select,
-      .authpay-mfa-input {
+      .veritas-mfa-select,
+      .veritas-mfa-input {
         border: 1px solid #d1d5db;
         border-radius: 14px;
         padding: 12px 14px;
@@ -385,20 +385,20 @@ const ensureAuthPayModal = () => {
         font-size: 14px;
         letter-spacing: 0.08em;
       }
-      .authpay-mfa-select:focus,
-      .authpay-mfa-input:focus {
+      .veritas-mfa-select:focus,
+      .veritas-mfa-input:focus {
         outline: none;
         box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
       }
-      .authpay-mfa-input::placeholder {
+      .veritas-mfa-input::placeholder {
         color: #9ca3af;
       }
-      .authpay-mfa-actions {
+      .veritas-mfa-actions {
         display: flex;
         flex-direction: column;
         gap: 12px;
       }
-      .authpay-mfa-button {
+      .veritas-mfa-button {
         border: none;
         border-radius: 999px;
         padding: 13px 18px;
@@ -408,27 +408,27 @@ const ensureAuthPayModal = () => {
         cursor: pointer;
         transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
       }
-      .authpay-mfa-request {
+      .veritas-mfa-request {
         background: linear-gradient(120deg, #6366f1, #8b5cf6);
         color: #ffffff;
         box-shadow: 0 12px 24px rgba(79, 70, 229, 0.25);
       }
-      .authpay-mfa-submit {
+      .veritas-mfa-submit {
         background: transparent;
         border: 1px solid #d1d5db;
         color: #1f2937;
       }
-      .authpay-mfa-button:hover:not(:disabled) {
+      .veritas-mfa-button:hover:not(:disabled) {
         transform: translateY(-1px);
         box-shadow: 0 14px 28px rgba(79, 70, 229, 0.2);
       }
-      .authpay-mfa-button:disabled {
+      .veritas-mfa-button:disabled {
         opacity: 0.35;
         cursor: not-allowed;
         transform: none;
         box-shadow: none;
       }
-      .authpay-mfa-status {
+      .veritas-mfa-status {
         margin-top: 16px;
         border-radius: 16px;
         padding: 12px 16px;
@@ -438,29 +438,29 @@ const ensureAuthPayModal = () => {
         display: none;
         border: 1px solid transparent;
       }
-      .authpay-mfa-status.is-visible {
+      .veritas-mfa-status.is-visible {
         display: block;
       }
-      .authpay-mfa-status[data-type="info"] {
+      .veritas-mfa-status[data-type="info"] {
         border-color: #c7d2fe;
         color: #4338ca;
       }
-      .authpay-mfa-status[data-type="success"] {
+      .veritas-mfa-status[data-type="success"] {
         border-color: #bbf7d0;
         color: #047857;
       }
-      .authpay-mfa-status[data-type="failure"] {
+      .veritas-mfa-status[data-type="failure"] {
         border-color: #fecdd3;
         color: #be123c;
       }
-      .authpay-mfa-hidden {
+      .veritas-mfa-hidden {
         display: none !important;
       }
       @media (max-width: 480px) {
-        .authpay-mfa-heading {
+        .veritas-mfa-heading {
           font-size: 22px;
         }
-        .authpay-mfa-dialog {
+        .veritas-mfa-dialog {
           padding: 28px 22px 24px;
         }
       }
@@ -469,59 +469,59 @@ const ensureAuthPayModal = () => {
   }
 
   const overlay = document.createElement('div');
-  overlay.id = 'authpay-mfa-overlay';
-  overlay.className = 'authpay-mfa-overlay';
+  overlay.id = 'veritas-mfa-overlay';
+  overlay.className = 'veritas-mfa-overlay';
   overlay.setAttribute('aria-hidden', 'true');
   overlay.innerHTML = `
-    <div class="authpay-mfa-dialog" role="dialog" aria-modal="true" aria-labelledby="authpay-mfa-title" tabindex="-1">
-      <button type="button" class="authpay-mfa-close" data-authpay-close aria-label="Cancel verification">×</button>
-      <span class="authpay-mfa-chip">AuthPay Shield</span>
-      <h2 id="authpay-mfa-title" class="authpay-mfa-heading">Multi-Factor Checkpoint</h2>
-      <p class="authpay-mfa-copy">Confirm this maison purchase with a one-time code delivered through your preferred channel.</p>
-      <div class="authpay-mfa-section authpay-mfa-hidden" data-authpay-signup>
-        <div class="authpay-mfa-field">
-          <label class="authpay-mfa-label" for="authpay-signup-email">Email Address</label>
-          <input id="authpay-signup-email" class="authpay-mfa-input" type="email" data-authpay-signup-email placeholder="name@example.com" autocomplete="email" />
+    <div class="veritas-mfa-dialog" role="dialog" aria-modal="true" aria-labelledby="veritas-mfa-title" tabindex="-1">
+      <button type="button" class="veritas-mfa-close" data-veritas-close aria-label="Cancel verification">×</button>
+      <span class="veritas-mfa-chip">Veritas Shield</span>
+      <h2 id="veritas-mfa-title" class="veritas-mfa-heading">Multi-Factor Checkpoint</h2>
+      <p class="veritas-mfa-copy">Confirm this maison purchase with a one-time code delivered through your preferred channel.</p>
+      <div class="veritas-mfa-section veritas-mfa-hidden" data-veritas-signup>
+        <div class="veritas-mfa-field">
+          <label class="veritas-mfa-label" for="veritas-signup-email">Email Address</label>
+          <input id="veritas-signup-email" class="veritas-mfa-input" type="email" data-veritas-signup-email placeholder="name@example.com" autocomplete="email" />
         </div>
-        <div class="authpay-mfa-field">
-          <label class="authpay-mfa-label" for="authpay-signup-phone">Phone Number</label>
-          <input id="authpay-signup-phone" class="authpay-mfa-input" type="tel" data-authpay-signup-phone placeholder="+1 555 555 5555" autocomplete="tel" />
+        <div class="veritas-mfa-field">
+          <label class="veritas-mfa-label" for="veritas-signup-phone">Phone Number</label>
+          <input id="veritas-signup-phone" class="veritas-mfa-input" type="tel" data-veritas-signup-phone placeholder="+1 555 555 5555" autocomplete="tel" />
         </div>
-        <button type="button" class="authpay-mfa-button authpay-mfa-request" data-authpay-signup-submit>Confirm & Send Code</button>
+        <button type="button" class="veritas-mfa-button veritas-mfa-request" data-veritas-signup-submit>Confirm & Send Code</button>
       </div>
-      <div class="authpay-mfa-field" data-authpay-method-block>
-        <label class="authpay-mfa-label" for="authpay-mfa-method">Verification Channel</label>
-        <select id="authpay-mfa-method" class="authpay-mfa-select" data-authpay-method></select>
+      <div class="veritas-mfa-field" data-veritas-method-block>
+        <label class="veritas-mfa-label" for="veritas-mfa-method">Verification Channel</label>
+        <select id="veritas-mfa-method" class="veritas-mfa-select" data-veritas-method></select>
       </div>
-      <div class="authpay-mfa-actions">
-        <button type="button" class="authpay-mfa-button authpay-mfa-request" data-authpay-request>Send Code</button>
-        <div class="authpay-mfa-field authpay-mfa-field--code authpay-mfa-hidden" data-authpay-code-block>
-          <label class="authpay-mfa-label" for="authpay-mfa-code">Enter Code</label>
-          <input id="authpay-mfa-code" class="authpay-mfa-input" data-authpay-code inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="one-time-code" />
+      <div class="veritas-mfa-actions">
+        <button type="button" class="veritas-mfa-button veritas-mfa-request" data-veritas-request>Send Code</button>
+        <div class="veritas-mfa-field veritas-mfa-field--code veritas-mfa-hidden" data-veritas-code-block>
+          <label class="veritas-mfa-label" for="veritas-mfa-code">Enter Code</label>
+          <input id="veritas-mfa-code" class="veritas-mfa-input" data-veritas-code inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="one-time-code" />
         </div>
-        <button type="button" class="authpay-mfa-button authpay-mfa-submit authpay-mfa-hidden" data-authpay-submit>Verify & Continue</button>
+        <button type="button" class="veritas-mfa-button veritas-mfa-submit veritas-mfa-hidden" data-veritas-submit>Verify & Continue</button>
       </div>
-      <p class="authpay-mfa-status" data-authpay-status></p>
+      <p class="veritas-mfa-status" data-veritas-status></p>
     </div>
   `;
   document.body.appendChild(overlay);
 
-  const dialog = overlay.querySelector('.authpay-mfa-dialog');
-  const closeButton = overlay.querySelector('[data-authpay-close]');
-  const methodSelect = overlay.querySelector('[data-authpay-method]');
-  const methodBlock = overlay.querySelector('[data-authpay-method-block]');
-  const requestButton = overlay.querySelector('[data-authpay-request]');
-  const codeBlock = overlay.querySelector('[data-authpay-code-block]');
-  const codeInput = overlay.querySelector('[data-authpay-code]');
-  const submitButton = overlay.querySelector('[data-authpay-submit]');
-  const statusMessage = overlay.querySelector('[data-authpay-status]');
-  const signupSection = overlay.querySelector('[data-authpay-signup]');
-  const signupEmailInput = overlay.querySelector('[data-authpay-signup-email]');
-  const signupPhoneInput = overlay.querySelector('[data-authpay-signup-phone]');
-  const signupButton = overlay.querySelector('[data-authpay-signup-submit]');
-  const chipElement = overlay.querySelector('.authpay-mfa-chip');
-  const headingElement = overlay.querySelector('.authpay-mfa-heading');
-  const copyElement = overlay.querySelector('.authpay-mfa-copy');
+  const dialog = overlay.querySelector('.veritas-mfa-dialog');
+  const closeButton = overlay.querySelector('[data-veritas-close]');
+  const methodSelect = overlay.querySelector('[data-veritas-method]');
+  const methodBlock = overlay.querySelector('[data-veritas-method-block]');
+  const requestButton = overlay.querySelector('[data-veritas-request]');
+  const codeBlock = overlay.querySelector('[data-veritas-code-block]');
+  const codeInput = overlay.querySelector('[data-veritas-code]');
+  const submitButton = overlay.querySelector('[data-veritas-submit]');
+  const statusMessage = overlay.querySelector('[data-veritas-status]');
+  const signupSection = overlay.querySelector('[data-veritas-signup]');
+  const signupEmailInput = overlay.querySelector('[data-veritas-signup-email]');
+  const signupPhoneInput = overlay.querySelector('[data-veritas-signup-phone]');
+  const signupButton = overlay.querySelector('[data-veritas-signup-submit]');
+  const chipElement = overlay.querySelector('.veritas-mfa-chip');
+  const headingElement = overlay.querySelector('.veritas-mfa-heading');
+  const copyElement = overlay.querySelector('.veritas-mfa-copy');
 
   const defaultSurfaceText = {
     chip: chipElement?.textContent || '',
@@ -555,11 +555,11 @@ const ensureAuthPayModal = () => {
   });
 
   const setMode = (mode = 'mfa') => {
-    overlay.dataset.authpayMode = mode;
+    overlay.dataset.veritasMode = mode;
     const isSignup = mode === 'signup';
-    signupSection?.classList.toggle('authpay-mfa-hidden', !isSignup);
-    methodBlock?.classList.toggle('authpay-mfa-hidden', isSignup);
-    requestButton?.classList.toggle('authpay-mfa-hidden', isSignup);
+    signupSection?.classList.toggle('veritas-mfa-hidden', !isSignup);
+    methodBlock?.classList.toggle('veritas-mfa-hidden', isSignup);
+    requestButton?.classList.toggle('veritas-mfa-hidden', isSignup);
   };
 
   const clearStatus = () => {
@@ -571,7 +571,7 @@ const ensureAuthPayModal = () => {
   const setCodeEntryVisible = (visible) => {
     elementsRequiringCode.forEach((element) => {
       if (!element) return;
-      element.classList.toggle('authpay-mfa-hidden', !visible);
+      element.classList.toggle('veritas-mfa-hidden', !visible);
     });
     if (codeInput) {
       codeInput.value = '';
@@ -733,7 +733,7 @@ const ensureAuthPayModal = () => {
     }
   });
 
-  window.AuthPayModal = api;
+  window.VeritasModal = api;
   return api;
 };
 
@@ -756,7 +756,7 @@ const createDefaultUI = ({
   baseStatusClass = '',
   statusClasses = {},
 } = {}) => {
-  const modal = ensureAuthPayModal();
+  const modal = ensureVeritasModal();
   const formEl = resolveElement(form);
   const statusEl = resolveElement(statusElement);
   const baseClasses = toClassList(baseStatusClass);
@@ -883,14 +883,14 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
       ? processPayment
       : async () => ({ status: 'SUCCESS' });
 
-  const orchestrateAuthPay = async (payload, overrideUI) => {
+  const orchestrateVeritas = async (payload, overrideUI) => {
     const paymentUI = overrideUI || ui;
     const invoke = (method, ...args) =>
       typeof paymentUI?.[method] === 'function'
         ? paymentUI[method](...args)
         : undefined;
 
-    invoke('showStatus', 'info', 'Routing through AuthPay orchestration...');
+    invoke('showStatus', 'info', 'Routing through Veritas orchestration...');
     invoke('toggleProcessing', true);
 
     await activeBackend.waitForAuth(payload);
@@ -1104,9 +1104,9 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
           onSubmitSignup: requestSignupCode,
           onSubmitCode: submitCode,
           onCancel: handleCancel,
-          headline: 'Create AuthPay Profile',
+          headline: 'Create Veritas Profile',
           copy: 'Provide your email and phone to finish verifying this purchase.',
-          chipText: 'AuthPay Onboarding',
+          chipText: 'Veritas Onboarding',
         });
         invoke('setMfaStatus', 'info', 'Enter your contact details to get started.');
       });
@@ -1231,7 +1231,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
   };
 
   const wrapped = async (payload, overrideUI) => {
-    const result = await orchestrateAuthPay(payload, overrideUI);
+    const result = await orchestrateVeritas(payload, overrideUI);
     if (!result?.status) {
       return fallbackProcessor(payload, overrideUI);
     }
@@ -1243,7 +1243,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
 };
 
 const enable = ({ processPayment, ui, backend } = {}) => {
-  const modal = ensureAuthPayModal();
+  const modal = ensureVeritasModal();
   const resolvedUI = ui || createDefaultUI();
   const wrappedProcessor = wrapProcessor({
     processPayment,
@@ -1259,8 +1259,8 @@ const enable = ({ processPayment, ui, backend } = {}) => {
   };
 };
 
-const AuthPay = {
-  ensureModal: ensureAuthPayModal,
+const Veritas = {
+  ensureModal: ensureVeritasModal,
   createDefaultUI,
   wrapProcessor,
   enable,
@@ -1269,7 +1269,7 @@ const AuthPay = {
 };
 
 if (typeof window !== 'undefined') {
-  window.AuthPay = AuthPay;
+  window.Veritas = Veritas;
 }
 
-export default AuthPay;
+export default Veritas;

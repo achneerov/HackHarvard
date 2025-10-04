@@ -454,7 +454,7 @@ function RulesManagement() {
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex justify-between items-center text-sm text-gray-600">
             <div>
-              <p>&copy; 2025 AuthPay. All rights reserved.</p>
+              <p>&copy; 2025 Veritas. All rights reserved.</p>
             </div>
             <div className="flex gap-6">
               <a href="#" className="hover:text-gray-900 transition-colors">Privacy Policy</a>

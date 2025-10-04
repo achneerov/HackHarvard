@@ -1,4 +1,4 @@
-import AuthPay from '../authpay.js';
+import Veritas from '../veritas.js';
 import { formatCurrency } from './products.js';
 import {
   getCart,
@@ -9,10 +9,10 @@ import {
 
 const backendConfig =
   (typeof window !== 'undefined' && {
-    ...(window.AuthPayConfig?.backend || window.AuthPayConfig || {}),
+    ...(window.VeritasConfig?.backend || window.VeritasConfig || {}),
   }) || {};
 
-const authPayBackendClient = AuthPay.createBackendClient(backendConfig);
+const veritasBackendClient = Veritas.createBackendClient(backendConfig);
 
 const form = document.getElementById('payment-form');
 const statusPanel = document.getElementById('payment-status');
@@ -27,7 +27,7 @@ const disableForm = (disabled) => {
   });
 };
 
-const PaymentUI = AuthPay.createDefaultUI({
+const PaymentUI = Veritas.createDefaultUI({
   form,
   statusElement: statusPanel,
   hiddenClass: 'hidden',
@@ -147,13 +147,13 @@ const handleResponse = (response) => {
   }
 };
 
-const authPayIntegration = AuthPay.enable({
+const veritasIntegration = Veritas.enable({
   ui: PaymentUI,
-  backend: authPayBackendClient,
+  backend: veritasBackendClient,
 });
 
-window.AuthPayIntegration = authPayIntegration;
-const processWithAuthPay = authPayIntegration.processPayment;
+window.VeritasIntegration = veritasIntegration;
+const processWithVeritas = veritasIntegration.processPayment;
 
 form?.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -167,7 +167,7 @@ form?.addEventListener('submit', async (event) => {
   const payload = await buildPayload(formData);
 
   try {
-    const response = await processWithAuthPay(payload, PaymentUI);
+    const response = await processWithVeritas(payload, PaymentUI);
     handleResponse(response);
     if (response?.status !== 'SUCCESS') {
       submitInFlight = false;
