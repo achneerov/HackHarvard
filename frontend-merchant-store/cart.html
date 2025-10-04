@@ -1,80 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Cuppa Collective | Cart</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="min-h-screen bg-slate-50">
-    <header class="bg-white border-b border-slate-200">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <a href="index.html" class="text-xl font-semibold text-slate-900">Cuppa Collective</a>
-        <nav class="flex items-center gap-6 text-sm">
-          <a class="text-slate-600 hover:text-slate-900" href="index.html">Shop</a>
-          <a class="text-slate-600 hover:text-slate-900" href="cart.html">Cart
-            <span class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold hidden" data-role="cart-count"></span>
-          </a>
-        </nav>
-      </div>
-    </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Louis Buitton | Cart & Concierge Details</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            night: '#101018',
+            champagne: '#f7e7ce',
+            gold: '#b8925a',
+          },
+          fontFamily: {
+            display: ['Playfair Display', 'serif'],
+            sans: ['Inter', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" />
+</head>
+<body class="bg-night text-white font-sans">
+  <header class="sticky top-0 z-40 backdrop-blur bg-night/90 border-b border-white/10">
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <a href="./" class="text-2xl font-display tracking-[0.35em] uppercase" aria-label="Louis Buitton Home">Louis Buitton</a>
+      <nav class="hidden gap-8 text-sm uppercase tracking-[0.3em] md:flex">
+        <a href="./" class="transition hover:text-gold">Collections</a>
+        <a href="#details" class="transition hover:text-gold">Details</a>
+      </nav>
+      <a href="payment.html" class="rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.3em] transition hover:border-gold hover:text-gold">Checkout</a>
+    </div>
+  </header>
 
-    <main class="mx-auto max-w-6xl px-4 py-10">
-      <h1 class="text-3xl font-bold text-slate-900">Your cart</h1>
-      <div class="mt-8 grid gap-8 lg:grid-cols-[2fr,1fr]">
-        <section class="rounded-2xl bg-white p-6 shadow-sm border border-slate-200" data-role="cart-items"></section>
-        <aside class="space-y-6">
-          <section class="rounded-2xl bg-white p-6 shadow-sm border border-slate-200">
-            <h2 class="text-lg font-semibold text-slate-900">Shipping details</h2>
-            <form class="mt-4 space-y-4" data-role="shipping-form">
-              <div>
-                <label class="text-sm font-medium text-slate-700" for="fullName">Full name</label>
-                <input id="fullName" name="fullName" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
-              </div>
-              <div class="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label class="text-sm font-medium text-slate-700" for="email">Email</label>
-                  <input id="email" name="email" type="email" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-700" for="phone">Phone</label>
-                  <input id="phone" name="phone" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Optional" />
-                </div>
-              </div>
-              <div>
-                <label class="text-sm font-medium text-slate-700" for="address">Address</label>
-                <input id="address" name="address" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
-              </div>
-              <div class="grid gap-4 sm:grid-cols-3">
-                <div class="sm:col-span-2">
-                  <label class="text-sm font-medium text-slate-700" for="city">City</label>
-                  <input id="city" name="city" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-700" for="state">State</label>
-                  <input id="state" name="state" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
-                </div>
-              </div>
-              <div>
-                <label class="text-sm font-medium text-slate-700" for="postalCode">Postal code</label>
-                <input id="postalCode" name="postalCode" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
-              </div>
-              <button class="w-full rounded-lg bg-indigo-600 py-3 text-sm font-semibold text-white hover:bg-indigo-700" data-role="checkout-button">
-                Proceed to checkout
-              </button>
-            </form>
-          </section>
-          <section class="rounded-2xl bg-white p-6 shadow-sm border border-slate-200">
-            <div class="flex justify-between text-sm text-slate-600">
-              <span>Subtotal</span>
-              <span data-role="order-total">$0.00</span>
+  <main class="mx-auto max-w-6xl px-6 py-16">
+    <div class="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div>
+        <p class="text-sm uppercase tracking-[0.5em] text-gold">Your Curated Selection</p>
+        <h1 class="mt-3 font-display text-3xl uppercase tracking-[0.3em]">Cart & Luxury Concierge</h1>
+      </div>
+      <p class="max-w-xl text-sm text-champagne/70">Review your pieces and share concierge details. Louis Buitton uses AuthPay to elegantly secure your purchase without compromising the experience.</p>
+    </div>
+
+    <div class="grid gap-12 lg:grid-cols-[2fr,1fr]">
+      <section class="space-y-6">
+        <div id="cart-items" class="space-y-6"></div>
+        <p id="empty-message" class="hidden rounded-3xl border border-white/10 bg-white/5 p-8 text-center text-sm text-champagne/70">Your cart is awaiting its first masterpiece. Return to the collections to begin your AuthPay journey.</p>
+      </section>
+
+      <aside id="details" class="rounded-3xl border border-white/10 bg-white/5 p-8">
+        <h2 class="text-lg uppercase tracking-[0.4em] text-gold">Concierge Details</h2>
+        <form id="customer-form" class="mt-6 space-y-5">
+          <div>
+            <label for="fullName" class="block text-xs uppercase tracking-[0.3em] text-champagne/70">Full Name</label>
+            <input id="fullName" name="fullName" type="text" required class="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-sm focus:border-gold focus:outline-none" placeholder="Emile Laurent" />
+          </div>
+          <div>
+            <label for="email" class="block text-xs uppercase tracking-[0.3em] text-champagne/70">Email</label>
+            <input id="email" name="email" type="email" required class="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-sm focus:border-gold focus:outline-none" placeholder="emile@louisbuitton.com" />
+          </div>
+          <div class="grid gap-5 md:grid-cols-2">
+            <div>
+              <label for="phone" class="block text-xs uppercase tracking-[0.3em] text-champagne/70">Phone</label>
+              <input id="phone" name="phone" type="tel" required class="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-sm focus:border-gold focus:outline-none" placeholder="+33 6 12 34 56 78" />
             </div>
-            <p class="mt-2 text-xs text-slate-500">Taxes and shipping calculated on next step.</p>
-          </section>
-        </aside>
-      </div>
-    </main>
+            <div>
+              <label for="postalCode" class="block text-xs uppercase tracking-[0.3em] text-champagne/70">Postal Code</label>
+              <input id="postalCode" name="postalCode" type="text" required class="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-sm focus:border-gold focus:outline-none" placeholder="75001" />
+            </div>
+          </div>
+          <div>
+            <label for="address" class="block text-xs uppercase tracking-[0.3em] text-champagne/70">Shipping Address</label>
+            <textarea id="address" name="address" rows="3" required class="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-sm focus:border-gold focus:outline-none" placeholder="228 Rue Saint-Honoré, Paris"></textarea>
+          </div>
+          <div>
+            <label for="city" class="block text-xs uppercase tracking-[0.3em] text-champagne/70">City</label>
+            <input id="city" name="city" type="text" required class="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-sm focus:border-gold focus:outline-none" placeholder="Paris" />
+          </div>
+          <div>
+            <label for="country" class="block text-xs uppercase tracking-[0.3em] text-champagne/70">Country</label>
+            <input id="country" name="country" type="text" required class="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-sm focus:border-gold focus:outline-none" placeholder="France" />
+          </div>
+          <div class="flex items-center justify-between border-t border-white/10 pt-6">
+            <div class="text-sm text-champagne/60">
+              <p id="subtotal-label">Subtotal</p>
+              <p class="text-xs">Taxes and duties calculated at payment</p>
+            </div>
+            <p id="subtotal-value" class="text-lg font-semibold text-gold"></p>
+          </div>
+          <button type="submit" class="w-full rounded-full border border-gold bg-gold px-6 py-3 text-sm uppercase tracking-[0.3em] text-night transition hover:bg-transparent hover:text-gold">Proceed to Checkout</button>
+        </form>
+      </aside>
+    </div>
+  </main>
 
-    <script type="module" src="./assets/js/cart-page.js"></script>
-  </body>
+  <footer class="border-t border-white/10 bg-black/70">
+    <div class="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-12 md:flex-row md:justify-between">
+      <div>
+        <p class="text-lg font-display uppercase tracking-[0.4em]">Louis Buitton</p>
+        <p class="mt-3 text-sm text-champagne/70">Your journey to timeless luxury continues with AuthPay's refined security.</p>
+      </div>
+      <div class="text-sm text-champagne/60">
+        <p>Need Assistance?</p>
+        <p class="mt-2">concierge@louisbuitton.com</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./js/products.js"></script>
+  <script type="module" src="./js/storage.js"></script>
+  <script type="module" src="./js/cartPage.js"></script>
+</body>
 </html>

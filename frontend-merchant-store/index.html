@@ -1,34 +1,146 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Cuppa Collective | Items</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="min-h-screen bg-slate-50">
-    <header class="bg-white border-b border-slate-200">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <a href="index.html" class="text-xl font-semibold text-slate-900">Cuppa Collective</a>
-        <nav class="flex items-center gap-6 text-sm">
-          <a class="text-slate-600 hover:text-slate-900" href="cart.html">Cart
-            <span class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold hidden" data-role="cart-count"></span>
-          </a>
-        </nav>
-      </div>
-    </header>
-
-    <main class="mx-auto max-w-6xl px-4 py-10">
-      <div class="mb-8 text-center">
-        <h1 class="text-3xl font-bold text-slate-900">Featured Coffee Gear</h1>
-        <p class="mt-2 text-slate-600">Add items to your cart to walk through the AuthPay checkout experience.</p>
-      </div>
-      <section class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" data-role="product-grid"></section>
-    </main>
-
-    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 transform transition-all duration-300 ease-out translate-y-6 opacity-0" data-role="toast">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Louis Buitton | Timeless Luxury</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            night: '#101018',
+            champagne: '#f7e7ce',
+            gold: '#b8925a',
+          },
+          fontFamily: {
+            display: ['Playfair Display', 'serif'],
+            sans: ['Inter', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" />
+</head>
+<body class="bg-night text-white font-sans">
+  <header class="sticky top-0 z-40 backdrop-blur bg-night/90 border-b border-white/10">
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <a href="./" class="text-2xl font-display tracking-[0.35em] uppercase" aria-label="Louis Buitton Home">Louis Buitton</a>
+      <nav class="hidden gap-8 text-sm uppercase tracking-[0.3em] md:flex">
+        <a href="./" class="transition hover:text-gold">Collections</a>
+        <a href="#craft" class="transition hover:text-gold">Craft</a>
+        <a href="#experience" class="transition hover:text-gold">Experience</a>
+        <a href="cart.html" class="transition hover:text-gold">Cart</a>
+      </nav>
+      <a href="cart.html" class="rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.3em] transition hover:border-gold hover:text-gold">Cart</a>
     </div>
+  </header>
 
-    <script type="module" src="./assets/js/index-page.js"></script>
-  </body>
+  <main>
+    <section class="relative overflow-hidden">
+      <div class="absolute inset-0">
+        <div class="absolute inset-0 bg-gradient-to-br from-night via-night/60 to-black"></div>
+        <img src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1800&q=80" alt="Luxury fashion" class="h-full w-full object-cover opacity-60" />
+      </div>
+      <div class="relative mx-auto flex max-w-6xl flex-col gap-10 px-6 py-32 md:flex-row md:items-center">
+        <div class="max-w-xl">
+          <p class="text-sm uppercase tracking-[0.5em] text-champagne/80">New Season Capsule</p>
+          <h1 class="mt-6 font-display text-4xl uppercase tracking-[0.35em] md:text-5xl">Embrace the Art of Travel</h1>
+          <p class="mt-6 text-lg text-champagne/80">Discover the Maison's signature silhouettes crafted with uncompromising attention to detail. The Louis Buitton Collection blends heritage craftsmanship with modern savoir-faire.</p>
+          <div class="mt-10 flex flex-wrap gap-4">
+            <a href="#catalog" class="rounded-full border border-gold bg-gold px-6 py-3 text-sm uppercase tracking-[0.3em] text-night transition hover:bg-transparent hover:text-gold">Explore Pieces</a>
+            <a href="cart.html" class="rounded-full border border-white/20 px-6 py-3 text-sm uppercase tracking-[0.3em] transition hover:border-gold hover:text-gold">View Cart</a>
+          </div>
+        </div>
+        <div class="hidden flex-1 justify-end md:flex">
+          <div class="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur">
+            <p class="font-display text-lg uppercase tracking-[0.4em] text-gold">Maison Heritage</p>
+            <p class="mt-4 max-w-xs text-sm text-champagne/70">Every piece in this collection is meticulously handcrafted in our Parisian atelier, celebrating a legacy of refined elegance.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="catalog" class="mx-auto max-w-6xl px-6 py-20">
+      <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p class="text-sm uppercase tracking-[0.5em] text-gold">The Maison Selection</p>
+          <h2 class="mt-3 font-display text-3xl uppercase tracking-[0.3em]">Timeless Essentials</h2>
+        </div>
+        <p class="max-w-xl text-sm text-champagne/70">From the iconic travel trunk to modern ready-to-wear, each creation is designed for patrons who appreciate subtle opulence. Add to your cart to experience the AuthPay checkout journey.</p>
+      </div>
+      <div id="product-grid" class="mt-12 grid gap-10 md:grid-cols-2 lg:grid-cols-3"></div>
+    </section>
+
+    <section id="craft" class="border-y border-white/10 bg-black/40">
+      <div class="mx-auto grid max-w-6xl gap-12 px-6 py-20 md:grid-cols-2">
+        <div>
+          <h3 class="font-display text-3xl uppercase tracking-[0.4em] text-gold">Maison Craft</h3>
+          <p class="mt-6 text-champagne/70">Louis Buitton artisans honor a legacy dating back to 1854. Each stitch speaks to the patience of a craft perfected over generations, blending exquisite materials with innovative techniques.</p>
+          <p class="mt-4 text-champagne/70">The AuthPay integration protects this heritage with modern, secure transaction flows adaptable to any level of customer authentication.</p>
+        </div>
+        <div class="space-y-6">
+          <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
+            <h4 class="text-sm uppercase tracking-[0.4em] text-gold">Secure Checkout</h4>
+            <p class="mt-2 text-sm text-champagne/70">AuthPay orchestrates multi-factor authentication to ensure every purchase is as trustworthy as it is refined.</p>
+          </div>
+          <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
+            <h4 class="text-sm uppercase tracking-[0.4em] text-gold">Global Experience</h4>
+            <p class="mt-2 text-sm text-champagne/70">Offer bespoke payment experiences for connoisseurs worldwide with a single integration.</p>
+          </div>
+          <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
+            <h4 class="text-sm uppercase tracking-[0.4em] text-gold">Effortless MFA</h4>
+            <p class="mt-2 text-sm text-champagne/70">Tailor authentication flows in real time based on transaction risk, maintaining a luxurious customer journey.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="experience" class="mx-auto max-w-6xl px-6 py-20">
+      <div class="grid gap-12 md:grid-cols-2">
+        <div class="space-y-6">
+          <h3 class="font-display text-3xl uppercase tracking-[0.3em]">Experience AuthPay</h3>
+          <p class="text-champagne/70">Explore the cart, checkout, and MFA flows to experience how AuthPay elevates luxury commerce. The demo showcases real-time verification, card hashing, webhook orchestration, and a refined MFA experience.</p>
+          <a href="cart.html" class="inline-flex rounded-full border border-gold bg-gold px-6 py-3 text-sm uppercase tracking-[0.3em] text-night transition hover:bg-transparent hover:text-gold">Go to Cart</a>
+        </div>
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-8">
+          <p class="font-display text-2xl uppercase tracking-[0.3em] text-gold">Maison Concierge</p>
+          <p class="mt-4 text-sm text-champagne/70">Engage with the checkout and authentication flows as if you were joining our private clientele. Each state transition is designed to mirror real-world payment orchestration.</p>
+          <ul class="mt-6 space-y-3 text-sm text-champagne/70">
+            <li class="flex items-center gap-3"><span class="h-2 w-2 rounded-full bg-gold"></span>Tokenized card data with client-side hashing</li>
+            <li class="flex items-center gap-3"><span class="h-2 w-2 rounded-full bg-gold"></span>Webhook-based transaction coordination</li>
+            <li class="flex items-center gap-3"><span class="h-2 w-2 rounded-full bg-gold"></span>Dynamic MFA selection driven by AuthPay</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-white/10 bg-black/70">
+    <div class="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-12 md:flex-row md:justify-between">
+      <div>
+        <p class="text-lg font-display uppercase tracking-[0.4em]">Louis Buitton</p>
+        <p class="mt-3 text-sm text-champagne/70">Captured elegance for the modern voyager. Experience the art of secure luxury commerce with AuthPay.</p>
+      </div>
+      <div class="text-sm text-champagne/60">
+        <p>Contact Concierge</p>
+        <p class="mt-2">+33 1 23 45 67 89</p>
+        <p>concierge@louisbuitton.com</p>
+      </div>
+      <div class="text-sm text-champagne/60">
+        <p>Visit Our Maison</p>
+        <p class="mt-2">228 Rue Saint-Honoré</p>
+        <p>75001 Paris, France</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./js/products.js"></script>
+  <script type="module" src="./js/storage.js"></script>
+  <script type="module" src="./js/itemsPage.js"></script>
+</body>
 </html>
