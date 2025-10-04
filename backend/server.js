@@ -467,7 +467,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
       case 'all':
       default:
         timeFilter = '';
-        timelineFilter = "AND timestamp >= datetime('now', '-7 days')";
+        timelineFilter = '';
         break;
     }
 

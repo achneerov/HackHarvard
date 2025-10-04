@@ -120,47 +120,92 @@ db.serialize(() => {
     });
   });
 
-  // Insert 500 MFA events across the last month with realistic distribution (90% success)
+  // Insert 3000 MFA events across the last 12 months with realistic distribution
   const locations = ['New York', 'Los Angeles', 'Chicago', 'Boston', 'Miami', 'Seattle', 'Austin', 'Denver'];
   const userHashes = ['hash001', 'hash002', 'hash003', 'hash004', 'hash005'];
-  const totalTransactions = 500;
+  const totalTransactions = 3000;
 
-  // Generate realistic status distribution: ~90% success, ~5% failure, ~5% auth required
-  function getRealisticStatus() {
+  // Generate realistic status distribution with random spikes
+  // Overall: ~85% success, ~10% auth required, ~5% failed
+  function getRealisticStatus(monthOffset) {
+    // Base probabilities
+    let successRate = 0.85;
+    let authRate = 0.10;
+    let failRate = 0.05;
+
+    // Add random monthly variations (±5%)
+    const monthVariation = (Math.sin(monthOffset * 0.5) * 0.05);
+    successRate += monthVariation;
+    authRate -= monthVariation * 0.5;
+    failRate -= monthVariation * 0.5;
+
+    // Random spikes - occasional bad days
+    if (Math.random() < 0.05) { // 5% chance of a spike
+      const spikeType = Math.random();
+      if (spikeType < 0.5) {
+        // Auth spike
+        authRate += 0.15;
+        successRate -= 0.15;
+      } else {
+        // Failure spike
+        failRate += 0.10;
+        successRate -= 0.10;
+      }
+    }
+
     const rand = Math.random();
-    if (rand < 0.90) return 1; // SUCCESS (90%)
-    if (rand < 0.95) return 2; // AUTH_REQUIRED (5%)
-    return 0; // FAILURE (5%)
+    if (rand < successRate) return 1; // SUCCESS
+    if (rand < successRate + authRate) return 2; // AUTH_REQUIRED
+    return 0; // FAILURE
   }
 
-  // Generate timestamp in the last 30 days
+  // Generate timestamp in the last 12 months (365 days)
   function getRandomTimestamp() {
     const now = new Date();
-    const daysAgo = Math.floor(Math.random() * 30); // 0-29 days ago
+    const daysAgo = Math.floor(Math.random() * 365); // 0-364 days ago
     const hoursAgo = Math.floor(Math.random() * 24);
     const minutesAgo = Math.floor(Math.random() * 60);
+    const secondsAgo = Math.floor(Math.random() * 60);
 
     const timestamp = new Date(now);
     timestamp.setDate(timestamp.getDate() - daysAgo);
     timestamp.setHours(timestamp.getHours() - hoursAgo);
     timestamp.setMinutes(timestamp.getMinutes() - minutesAgo);
+    timestamp.setSeconds(timestamp.getSeconds() - secondsAgo);
 
-    return timestamp.toISOString().replace('T', ' ').substring(0, 19);
+    return { timestamp: timestamp.toISOString().replace('T', ' ').substring(0, 19), daysAgo };
   }
 
+  // Generate more transactions for recent months (realistic business growth)
+  const transactionsByMonth = [];
+  for (let month = 0; month < 12; month++) {
+    // More recent months have more transactions
+    const baseCount = 200 + (month * 15); // Growth over time
+    const variance = Math.floor(Math.random() * 100 - 50);
+    transactionsByMonth.push(Math.max(150, baseCount + variance));
+  }
+
+  let insertedCount = 0;
   for (let i = 0; i < totalTransactions; i++) {
     const cchash = userHashes[Math.floor(Math.random() * userHashes.length)];
     const amount = (Math.random() * 2000).toFixed(2);
     const location = locations[Math.floor(Math.random() * locations.length)];
-    const status = getRealisticStatus();
-    const timestamp = getRandomTimestamp();
+
+    const { timestamp, daysAgo } = getRandomTimestamp();
+    const monthOffset = Math.floor(daysAgo / 30);
+    const status = getRealisticStatus(monthOffset);
 
     db.run(`INSERT INTO MFAEvents (cchash, transactionAmount, location, merchantApiKey, status, timestamp)
             VALUES (?, ?, ?, ?, ?, ?)`,
       [cchash, amount, location, 'merchant_key_abc123', status, timestamp],
       function(err) {
         if (err) console.error(`Error inserting MFA event ${i + 1}:`, err);
-        else if (i === totalTransactions - 1) console.log(`✓ Inserted ${totalTransactions} MFA events`);
+        else {
+          insertedCount++;
+          if (insertedCount === totalTransactions) {
+            console.log(`✓ Inserted ${totalTransactions} MFA events across 12 months`);
+          }
+        }
       }
     );
   }
