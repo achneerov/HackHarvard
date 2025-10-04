@@ -1,5 +1,6 @@
 import { products, formatCurrency } from './products.js';
-import { addToCart, getCart } from './storage.js';
+import { addToCart } from './storage.js';
+import { refreshCartIndicator } from './header.js';
 
 const productGrid = document.getElementById('product-grid');
 
@@ -34,6 +35,7 @@ const handleAddToCart = (event) => {
   const product = products.find((item) => item.id === productId);
   if (!product) return;
   addToCart(product, 1);
+  refreshCartIndicator();
   button.textContent = 'Added';
   button.classList.remove('bg-gold', 'text-night');
   button.classList.add('border-white/40', 'text-champagne/80');
@@ -44,27 +46,8 @@ const handleAddToCart = (event) => {
   }, 1400);
 };
 
-const updateCartBadge = () => {
-  const cartLink = document.querySelector('a[href="cart.html"]');
-  if (!cartLink) return;
-  const count = getCart().reduce((acc, item) => acc + item.quantity, 0);
-  if (count > 0) {
-    cartLink.dataset.count = count;
-    cartLink.classList.add('relative');
-    if (!cartLink.querySelector('[data-badge]')) {
-      const badge = document.createElement('span');
-      badge.dataset.badge = 'true';
-      badge.className = 'absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-gold text-[10px] font-semibold text-night';
-      badge.textContent = count;
-      cartLink.appendChild(badge);
-    } else {
-      cartLink.querySelector('[data-badge]').textContent = count;
-    }
-  }
-};
-
 if (productGrid) {
   renderProducts();
   productGrid.addEventListener('click', handleAddToCart);
-  updateCartBadge();
+  refreshCartIndicator();
 }

@@ -6,6 +6,7 @@ import {
   saveCustomerDetails,
   getCustomerDetails,
 } from './storage.js';
+import { refreshCartIndicator } from './header.js';
 
 const cartItemsContainer = document.getElementById('cart-items');
 const emptyMessage = document.getElementById('empty-message');
@@ -16,6 +17,7 @@ const form = document.getElementById('customer-form');
 const renderCart = () => {
   if (!cartItemsContainer) return;
   const cart = getCart();
+  refreshCartIndicator();
   cartItemsContainer.innerHTML = '';
 
   if (cart.length === 0) {
