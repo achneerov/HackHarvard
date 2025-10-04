@@ -6,6 +6,7 @@ function Dashboard() {
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [timePeriod, setTimePeriod] = useState('all');
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -78,9 +79,25 @@ function Dashboard() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Transaction Overview</h1>
-          <p className="text-gray-600">Monitor your merchant transactions and authentication events</p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Transaction Overview</h1>
+            <p className="text-gray-600">Monitor your merchant transactions and authentication events</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Time Period:</label>
+            <select
+              value={timePeriod}
+              onChange={(e) => setTimePeriod(e.target.value)}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <option value="day">Last Day</option>
+              <option value="week">Last Week</option>
+              <option value="month">Last Month</option>
+              <option value="year">Last Year</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
@@ -139,17 +156,25 @@ function Dashboard() {
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-5">Location Distribution</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-5">Top Locations by Transactions</h3>
             {dashboardData.locationStats.length > 0 ? (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3">
                 {dashboardData.locationStats.map((location, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-purple-600">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-semibold text-gray-900 text-sm">{location.location}</span>
-                      <span className="text-sm text-gray-600">{location.transactions} transactions</span>
+                  <div key={idx} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-200 hover:shadow-sm transition-all">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                      idx === 0 ? 'bg-yellow-100 text-yellow-700' :
+                      idx === 1 ? 'bg-gray-200 text-gray-700' :
+                      idx === 2 ? 'bg-orange-100 text-orange-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      #{idx + 1}
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${location.flagged > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
-                      {location.flagged} flagged
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-900 text-sm">{location.location}</div>
+                      <div className="text-xs text-gray-600">{location.transactions} transactions</div>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${location.flagged > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                      {location.flagged > 0 ? `${location.flagged} flagged` : '✓'}
                     </span>
                   </div>
                 ))}
@@ -160,6 +185,37 @@ function Dashboard() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-5">Failed Transaction Locations</h3>
+          {dashboardData.locationStats && dashboardData.locationStats.filter(loc => loc.failed > 0).length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {dashboardData.locationStats
+                .filter(location => location.failed > 0)
+                .sort((a, b) => b.failed - a.failed)
+                .map((location, idx) => (
+                  <div key={idx} className="p-4 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-gray-900">{location.location}</span>
+                      <span className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs font-bold">
+                        {location.failed}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {location.failed} failed transaction{location.failed !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <div className="h-24 flex items-center justify-center text-gray-500 bg-green-50 rounded-lg border border-green-200">
+              <div className="text-center">
+                <div className="text-2xl mb-2">✓</div>
+                <div className="text-sm font-medium text-green-700">No failed transactions from any location</div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
