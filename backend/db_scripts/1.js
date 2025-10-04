@@ -7,8 +7,8 @@ const db = new sqlite3.Database(dbPath);
 db.serialize(() => {
   // Drop existing tables
   db.run(`DROP TABLE IF EXISTS Rules`);
-  db.run(`DROP TABLE IF EXISTS Attempts`);
-  db.run(`DROP TABLE IF EXISTS MerchantApiKey`);
+  db.run(`DROP TABLE IF EXISTS MFAEvents`);
+  db.run(`DROP TABLE IF EXISTS MerchantApiKeys`);
   db.run(`DROP TABLE IF EXISTS Users`);
 
   // Users table
@@ -19,45 +19,46 @@ db.serialize(() => {
       phone TEXT,
       otp TEXT,
       biometric TEXT,
-      HardwareToken TEXT
+      hardwareToken TEXT,
+      authCode TEXT
     )
   `);
 
-  // MerchantApiKey table
+  // MerchantApiKeys table
   db.run(`
-    CREATE TABLE IF NOT EXISTS MerchantApiKey (
-      MerchantApiKey TEXT PRIMARY KEY
+    CREATE TABLE IF NOT EXISTS MerchantApiKeys (
+      apiKey TEXT PRIMARY KEY
     )
   `);
 
-  // Attempts table
+  // MFAEvents table
   db.run(`
-    CREATE TABLE IF NOT EXISTS Attempts (
+    CREATE TABLE IF NOT EXISTS MFAEvents (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       cchash TEXT,
-      transaction_amount REAL,
+      transactionAmount REAL,
       location TEXT,
-      merchantapikey TEXT,
+      merchantApiKey TEXT,
       status INTEGER CHECK(status IN (0, 1, 2)),
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (cchash) REFERENCES Users(cchash),
-      FOREIGN KEY (merchantapikey) REFERENCES MerchantApiKey(MerchantApiKey)
+      FOREIGN KEY (merchantApiKey) REFERENCES MerchantApiKeys(apiKey)
     )
   `);
 
   // Rules table
   db.run(`
     CREATE TABLE IF NOT EXISTS Rules (
-      rule_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      merchantapikey TEXT,
+      ruleId INTEGER PRIMARY KEY AUTOINCREMENT,
+      merchantApiKey TEXT,
       priority INTEGER DEFAULT 0,
       amount REAL,
       location TEXT,
-      time_start TEXT,
-      time_end TEXT,
+      timeStart TEXT,
+      timeEnd TEXT,
       condition TEXT CHECK(condition IN ('EQUAL', 'GREATER', 'LESS_THAN', 'NOT', 'IS')),
-      success_status INTEGER CHECK(success_status IN (0, 1, 2)),
-      FOREIGN KEY (merchantapikey) REFERENCES MerchantApiKey(MerchantApiKey)
+      successStatus INTEGER CHECK(successStatus IN (0, 1, 2)),
+      FOREIGN KEY (merchantApiKey) REFERENCES MerchantApiKeys(apiKey)
     )
   `);
 
