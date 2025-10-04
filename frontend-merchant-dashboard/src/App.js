@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import SignIn from './pages/SignIn';
 import Dashboard from './pages/Dashboard';
 import RulesManagement from './pages/RulesManagement';
+import DeviceManagement from './pages/DeviceManagement';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -28,6 +29,14 @@ function App() {
           element={
             <ProtectedRoute>
               <RulesManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/devices"
+          element={
+            <ProtectedRoute>
+              <DeviceManagement />
             </ProtectedRoute>
           }
         />

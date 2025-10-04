@@ -6,6 +6,7 @@ import {
   clearCart,
   saveOrder,
 } from './storage.js';
+import { generateDeviceFingerprint } from './deviceFingerprint.js';
 
 const backendConfig =
   (typeof window !== 'undefined' && {
@@ -94,6 +95,9 @@ const buildPayload = async (formData) => {
     ? locationSuggestion
     : backendConfig.defaultLocation ?? null;
 
+  // Generate device fingerprint
+  const deviceData = await generateDeviceFingerprint();
+
   return {
     cart,
     customer,
@@ -112,6 +116,8 @@ const buildPayload = async (formData) => {
     useCustomerLocation: preferCustomerLocation,
     merchantApiKey: backendConfig.merchantApiKey,
     emailAddress: customer?.email,
+    deviceFingerprint: deviceData.fingerprint,
+    deviceInfo: deviceData.info,
   };
 };
 

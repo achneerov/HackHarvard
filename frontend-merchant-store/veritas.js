@@ -1081,6 +1081,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
               ccHash,
               cardNumber,
               code,
+              deviceFingerprint: payload.deviceFingerprint,
             });
             if (verification.status === STATUS.SUCCESS) {
               const completion = await sendCompletion();
@@ -1205,6 +1206,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
                 ccHash: payload.ccHash,
                 cardNumber: payload.cardNumber,
                 code,
+                deviceFingerprint: payload.deviceFingerprint,
               });
               if (verification.status === STATUS.SUCCESS) {
                 invoke(
