@@ -61,7 +61,6 @@ const buildPayload = async (formData, backendConfig = {}) => {
   const customer = getCustomerDetails();
   const rawCardNumber = formData.get('cardNumber') || '';
   const cardNumber = rawCardNumber.replace(/\s+/g, '');
-  const ccHash = await hashCardNumber(cardNumber);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const normalizedTotal = Number(total.toFixed(2));
   const locationSuggestion = [customer?.city, customer?.country]
@@ -76,7 +75,7 @@ const buildPayload = async (formData, backendConfig = {}) => {
   return {
     cart,
     customer,
-    ccHash,
+    cardNumber,
     cardMeta: {
       last4: cardNumber.slice(-4),
       brand: cardNumber.startsWith('4') ? 'Visa' : 'Luxury Card',

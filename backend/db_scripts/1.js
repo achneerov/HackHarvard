@@ -102,7 +102,7 @@ db.serialize(() => {
     ["hash003", "user3@example.com", "+1555555555", null, "enabled", null, null, "Chicago"],
     ["hash004", "user4@example.com", "+1444444444", "enabled", "enabled", null, null, "Boston"],
     ["hash005", "user5@example.com", "+1666666666", null, null, "enabled", null, "Miami"],
-    ["0866a6eaea5cb085e4cf6ef19296bf19647552dd5f96f1e530db3ae61837efe7", "renaudbernier@hotmail.fr", "+33652458849", null, null, "enabled", null, "Paris"],
+    ["24245b52fa8a42a5410f97829bbc54eb707f8a742a4dca5bc09c84b6d0aeac73:3e1cad821309e4bb6671a868ee854b92efa568d4a3ac0c37f039429e31dee8d92e080b64ace0f81f87df7e1e6268f0948b297f801c9f7ace58f21c75b6b74c59", "renaudbernier@hotmail.fr", "+33652458849", null, null, "enabled", null, "Paris"],
     ["hash006", "sarah.johnson@gmail.com", "+14155551234", "enabled", "enabled", null, null, "San Francisco"],
     ["hash007", "michael.chen@yahoo.com", "+12125559876", null, "enabled", "enabled", null, "New York"],
     ["hash008", "emily.rodriguez@outlook.com", "+13105552341", "enabled", null, "enabled", null, "Los Angeles"],
@@ -174,7 +174,7 @@ db.serialize(() => {
     "hash021", "hash022", "hash023", "hash024", "hash025", "hash026", "hash027", "hash028", "hash029", "hash030",
     "hash031", "hash032", "hash033", "hash034", "hash035", "hash036", "hash037", "hash038", "hash039", "hash040",
     "hash041", "hash042", "hash043", "hash044", "hash045", "hash046", "hash047", "hash048", "hash049", "hash050",
-    "0866a6eaea5cb085e4cf6ef19296bf19647552dd5f96f1e530db3ae61837efe7"
+    "24245b52fa8a42a5410f97829bbc54eb707f8a742a4dca5bc09c84b6d0aeac73:3e1cad821309e4bb6671a868ee854b92efa568d4a3ac0c37f039429e31dee8d92e080b64ace0f81f87df7e1e6268f0948b297f801c9f7ace58f21c75b6b74c59"
   ];
   const totalTransactions = 3000;
 

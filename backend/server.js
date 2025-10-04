@@ -3,6 +3,7 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
+const crypto = require("crypto");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
 const sgMail = require("@sendgrid/mail");
@@ -65,6 +66,25 @@ function generateRandomUserId() {
     randomChars += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return `user-${randomChars}`;
+}
+
+// Helper function to hash and salt credit card numbers
+function hashAndSaltCardNumber(cardNumber) {
+  // Generate a random salt (32 bytes)
+  const salt = crypto.randomBytes(32).toString('hex');
+
+  // Hash the card number with the salt using PBKDF2
+  const hash = crypto.pbkdf2Sync(cardNumber, salt, 100000, 64, 'sha512').toString('hex');
+
+  // Return both hash and salt (separated by a delimiter)
+  return `${salt}:${hash}`;
+}
+
+// Helper function to verify a card number against a stored hash
+function verifyCardNumber(cardNumber, storedHash) {
+  const [salt, hash] = storedHash.split(':');
+  const verifyHash = crypto.pbkdf2Sync(cardNumber, salt, 100000, 64, 'sha512').toString('hex');
+  return hash === verifyHash;
 }
 
 // Helper function to get enabled auth methods for a user
@@ -215,7 +235,14 @@ function evaluateRules(
 
 // Endpoint 1: Process Transaction
 app.post("/api/processTransaction", async (req, res) => {
-  const { hashCC, amount, location, merchantApiKey, emailAddress } = req.body;
+  const { cardNumber, amount, location, merchantApiKey, emailAddress } = req.body;
+
+  if (!cardNumber) {
+    return res.json({
+      status: STATUS.FAILURE,
+      message: "Card number required",
+    });
+  }
 
   try {
     // Validate merchant API key
@@ -233,12 +260,12 @@ app.post("/api/processTransaction", async (req, res) => {
     if (!merchantExists) {
       console.warn("[Veritas] processTransaction denied: invalid merchant", {
         merchantApiKey,
-        hashCC,
         amount,
         location,
       });
+      const tempHash = hashAndSaltCardNumber(cardNumber);
       await logMFAEvent(
-        hashCC,
+        tempHash,
         amount,
         location,
         merchantApiKey,
@@ -250,23 +277,32 @@ app.post("/api/processTransaction", async (req, res) => {
       });
     }
 
-    // Check if user exists
-    const user = await new Promise((resolve, reject) => {
-      db.get("SELECT * FROM Users WHERE cchash = ?", [hashCC], (err, row) => {
+    // Get all users and verify card number against stored hashes
+    const allUsers = await new Promise((resolve, reject) => {
+      db.all("SELECT * FROM Users", [], (err, rows) => {
         if (err) reject(err);
-        else resolve(row);
+        else resolve(rows);
       });
     });
+
+    // Find matching user by verifying card number
+    let user = null;
+    for (const u of allUsers) {
+      if (verifyCardNumber(cardNumber, u.cchash)) {
+        user = u;
+        break;
+      }
+    }
 
     if (!user) {
       console.warn("[Veritas] processTransaction denied: user not found", {
         merchantApiKey,
-        hashCC,
         amount,
         location,
       });
+      const tempHash = hashAndSaltCardNumber(cardNumber);
       await logMFAEvent(
-        hashCC,
+        tempHash,
         amount,
         location,
         merchantApiKey,
@@ -278,6 +314,9 @@ app.post("/api/processTransaction", async (req, res) => {
       });
     }
 
+    // Use the user's stored cchash for subsequent operations
+    const ccHash = user.cchash;
+
     // Evaluate transaction rules
     const ruleStatus = await evaluateRules(
       merchantApiKey,
@@ -287,12 +326,12 @@ app.post("/api/processTransaction", async (req, res) => {
       user.signUpLocation
     );
 
-    await logMFAEvent(hashCC, amount, location, merchantApiKey, ruleStatus);
+    await logMFAEvent(ccHash, amount, location, merchantApiKey, ruleStatus);
 
     if (ruleStatus === STATUS.SUCCESS) {
       console.log("[Veritas] processTransaction approved", {
         merchantApiKey,
-        hashCC,
+        ccHash: ccHash.substring(0, 20) + '...',
         amount,
         location,
       });
@@ -304,7 +343,7 @@ app.post("/api/processTransaction", async (req, res) => {
       const authMethods = getEnabledAuthMethods(user);
       console.log("[Veritas] processTransaction requires additional auth", {
         merchantApiKey,
-        hashCC,
+        ccHash: ccHash.substring(0, 20) + '...',
         amount,
         location,
         authMethods,
@@ -317,7 +356,7 @@ app.post("/api/processTransaction", async (req, res) => {
     } else {
       console.warn("[Veritas] processTransaction denied by rules", {
         merchantApiKey,
-        hashCC,
+        ccHash: ccHash.substring(0, 20) + '...',
         amount,
         location,
         userSignUpLocation: user.signUpLocation,
@@ -337,16 +376,40 @@ app.post("/api/processTransaction", async (req, res) => {
 
 // Endpoint 2: Request Code
 app.post("/api/requestCode", async (req, res) => {
-  const { hashCC, authMode, email, phone, merchantApiKey, location } = req.body;
+  const { cardNumber, authMode, email, phone, merchantApiKey, location } = req.body;
+
+  if (!cardNumber) {
+    return res.json({
+      status: STATUS.FAILURE,
+      message: "Card number required",
+    });
+  }
+
+  // Hash and salt the card number for new users
+  let ccHash = hashAndSaltCardNumber(cardNumber);
 
   try {
-    // Get user
-    const user = await new Promise((resolve, reject) => {
-      db.get("SELECT * FROM Users WHERE cchash = ?", [hashCC], (err, row) => {
+    // Get all users and verify card number against stored hashes
+    const allUsers = await new Promise((resolve, reject) => {
+      db.all("SELECT * FROM Users", [], (err, rows) => {
         if (err) reject(err);
-        else resolve(row);
+        else resolve(rows);
       });
     });
+
+    // Find matching user by verifying card number
+    let user = null;
+    for (const u of allUsers) {
+      if (verifyCardNumber(cardNumber, u.cchash)) {
+        user = u;
+        break;
+      }
+    }
+
+    // Use the user's stored cchash if user exists
+    if (user) {
+      ccHash = user.cchash;
+    }
 
     // Generate random 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -356,7 +419,7 @@ app.post("/api/requestCode", async (req, res) => {
       await new Promise((resolve, reject) => {
         db.run(
           "UPDATE Users SET authCode = ? WHERE cchash = ?",
-          [code, hashCC],
+          [code, ccHash],
           function (err) {
             if (err) reject(err);
             else resolve();
@@ -366,7 +429,7 @@ app.post("/api/requestCode", async (req, res) => {
 
       // Send code via selected auth method
       console.log(
-        `[AUTH CODE] User: ${hashCC}, Method: ${authMode}, Code: ${code}`
+        `[AUTH CODE] User: ${ccHash.substring(0, 20)}..., Method: ${authMode}, Code: ${code}`
       );
 
       switch (authMode) {
@@ -429,10 +492,6 @@ app.post("/api/requestCode", async (req, res) => {
           break;
       }
 
-      console.log(
-        `[AUTH CODE] User: ${hashCC}, Method: ${authMode}, Code: ${code}`
-      );
-
       return res.json({
         status: STATUS.SUCCESS,
         message: "Code sent successfully",
@@ -460,7 +519,7 @@ app.post("/api/requestCode", async (req, res) => {
            merchantApiKey = excluded.merchantApiKey,
            verified = 0,
            createdAt = CURRENT_TIMESTAMP`,
-        [hashCC, email, phone, code, location || null, merchantApiKey || null],
+        [ccHash, email, phone, code, location || null, merchantApiKey || null],
         function (err) {
           if (err) reject(err);
           else resolve();
@@ -469,7 +528,7 @@ app.post("/api/requestCode", async (req, res) => {
     });
 
     console.log(
-      `[AUTH CODE][SIGNUP] Pending user: ${hashCC}, Method: ${authMode}, Code: ${code}`
+      `[AUTH CODE][SIGNUP] Pending user: ${ccHash.substring(0, 20)}..., Method: ${authMode}, Code: ${code}`
     );
 
     // Send code via email for new sign-ups
@@ -514,29 +573,63 @@ app.post("/api/requestCode", async (req, res) => {
 
 // Endpoint 3: Verify MFA
 app.post("/api/verifyMFA", async (req, res) => {
-  const { hashCC, code } = req.body;
+  const { cardNumber, code } = req.body;
+
+  if (!cardNumber) {
+    return res.json({
+      status: STATUS.FAILURE,
+      message: "Card number required",
+    });
+  }
+
+  // Hash and salt the card number for new users
+  let ccHash = hashAndSaltCardNumber(cardNumber);
 
   try {
-    // Get user with stored auth code
-    const user = await new Promise((resolve, reject) => {
-      db.get("SELECT * FROM Users WHERE cchash = ?", [hashCC], (err, row) => {
+    // Get all users and verify card number against stored hashes
+    const allUsers = await new Promise((resolve, reject) => {
+      db.all("SELECT * FROM Users", [], (err, rows) => {
         if (err) reject(err);
-        else resolve(row);
+        else resolve(rows);
       });
     });
 
+    // Find matching user by verifying card number
+    let user = null;
+    for (const u of allUsers) {
+      if (verifyCardNumber(cardNumber, u.cchash)) {
+        user = u;
+        break;
+      }
+    }
+
+    // Use the user's stored cchash if user exists
+    if (user) {
+      ccHash = user.cchash;
+    }
+
     if (!user) {
-      // Check pending sign-ups
-      const pendingUser = await new Promise((resolve, reject) => {
-        db.get(
-          "SELECT * FROM PendingUsers WHERE cchash = ?",
-          [hashCC],
-          (err, row) => {
-            if (err) reject(err);
-            else resolve(row);
-          }
-        );
+      // Check pending sign-ups - check all pending users
+      const allPendingUsers = await new Promise((resolve, reject) => {
+        db.all("SELECT * FROM PendingUsers", [], (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        });
       });
+
+      // Find matching pending user by verifying card number
+      let pendingUser = null;
+      for (const u of allPendingUsers) {
+        if (verifyCardNumber(cardNumber, u.cchash)) {
+          pendingUser = u;
+          break;
+        }
+      }
+
+      // Use the pending user's stored cchash if exists
+      if (pendingUser) {
+        ccHash = pendingUser.cchash;
+      }
 
       if (!pendingUser) {
         return res.json({ status: STATUS.FAILURE, message: "User not found" });
@@ -553,7 +646,7 @@ app.post("/api/verifyMFA", async (req, res) => {
         await new Promise((resolve, reject) => {
           db.run(
             "UPDATE PendingUsers SET authCode = NULL, verified = 1 WHERE cchash = ?",
-            [hashCC],
+            [ccHash],
             function (err) {
               if (err) reject(err);
               else resolve();
@@ -584,7 +677,7 @@ app.post("/api/verifyMFA", async (req, res) => {
       await new Promise((resolve, reject) => {
         db.run(
           "UPDATE Users SET authCode = NULL WHERE cchash = ?",
-          [hashCC],
+          [ccHash],
           function (err) {
             if (err) reject(err);
             else resolve();
@@ -609,14 +702,24 @@ app.post("/api/verifyMFA", async (req, res) => {
 
 // Endpoint 4: Register User After Sign-Up Verification
 app.post("/api/registerUser", async (req, res) => {
-  const { hashCC, email, phone, location, merchantApiKey, amount } = req.body;
+  const { cardNumber, email, phone, location, merchantApiKey, amount } = req.body;
 
-  if (!hashCC || !email || !phone || !merchantApiKey || amount == null) {
+  if (!cardNumber) {
+    return res.json({
+      status: STATUS.FAILURE,
+      message: "Card number required",
+    });
+  }
+
+  if (!email || !phone || !merchantApiKey || amount == null) {
     return res.json({
       status: STATUS.FAILURE,
       message: "Missing required registration details",
     });
   }
+
+  // Hash and salt the card number for new users
+  let ccHash = hashAndSaltCardNumber(cardNumber);
 
   try {
     const merchantExists = await new Promise((resolve, reject) => {
@@ -637,23 +740,46 @@ app.post("/api/registerUser", async (req, res) => {
       });
     }
 
-    const existingUser = await new Promise((resolve, reject) => {
-      db.get("SELECT * FROM Users WHERE cchash = ?", [hashCC], (err, row) => {
+    // Get all users and verify card number against stored hashes
+    const allUsers = await new Promise((resolve, reject) => {
+      db.all("SELECT * FROM Users", [], (err, rows) => {
         if (err) reject(err);
-        else resolve(row);
+        else resolve(rows);
       });
     });
 
-    const pendingUser = await new Promise((resolve, reject) => {
-      db.get(
-        "SELECT * FROM PendingUsers WHERE cchash = ?",
-        [hashCC],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
+    // Find matching user by verifying card number
+    let existingUser = null;
+    for (const u of allUsers) {
+      if (verifyCardNumber(cardNumber, u.cchash)) {
+        existingUser = u;
+        break;
+      }
+    }
+
+    // Check pending users
+    const allPendingUsers = await new Promise((resolve, reject) => {
+      db.all("SELECT * FROM PendingUsers", [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
     });
+
+    // Find matching pending user by verifying card number
+    let pendingUser = null;
+    for (const u of allPendingUsers) {
+      if (verifyCardNumber(cardNumber, u.cchash)) {
+        pendingUser = u;
+        break;
+      }
+    }
+
+    // Use the stored cchash if user or pending user exists
+    if (existingUser) {
+      ccHash = existingUser.cchash;
+    } else if (pendingUser) {
+      ccHash = pendingUser.cchash;
+    }
 
     if (!existingUser && !pendingUser) {
       return res.json({
@@ -687,7 +813,7 @@ app.post("/api/registerUser", async (req, res) => {
            email = excluded.email,
            phone = excluded.phone,
            signUpLocation = excluded.signUpLocation`,
-        [hashCC, email, phone, resolvedLocation],
+        [ccHash, email, phone, resolvedLocation],
         function (err) {
           if (err) reject(err);
           else resolve();
@@ -696,7 +822,7 @@ app.post("/api/registerUser", async (req, res) => {
     });
 
     const userRecord = await new Promise((resolve, reject) => {
-      db.get("SELECT * FROM Users WHERE cchash = ?", [hashCC], (err, row) => {
+      db.get("SELECT * FROM Users WHERE cchash = ?", [ccHash], (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
@@ -725,7 +851,7 @@ app.post("/api/registerUser", async (req, res) => {
     );
 
     await logMFAEvent(
-      hashCC,
+      ccHash,
       numericAmount,
       transactionLocation,
       merchantApiKey,
@@ -736,7 +862,7 @@ app.post("/api/registerUser", async (req, res) => {
       await new Promise((resolve, reject) => {
         db.run(
           "DELETE FROM PendingUsers WHERE cchash = ?",
-          [hashCC],
+          [ccHash],
           function (err) {
             if (err) reject(err);
             else resolve();
@@ -748,7 +874,7 @@ app.post("/api/registerUser", async (req, res) => {
     if (ruleStatus === STATUS.FAILURE) {
       console.warn("[Veritas] registerUser denied by rules", {
         merchantApiKey,
-        hashCC,
+        ccHash: ccHash.substring(0, 20) + '...',
         amount: numericAmount,
         location: transactionLocation,
       });
@@ -760,7 +886,7 @@ app.post("/api/registerUser", async (req, res) => {
 
     console.log("[Veritas] registerUser approved", {
       merchantApiKey,
-      hashCC,
+      ccHash: ccHash.substring(0, 20) + '...',
       amount: numericAmount,
       location: transactionLocation,
     });

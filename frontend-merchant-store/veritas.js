@@ -160,6 +160,7 @@ const createBackendClient = (options = {}) => {
 
   const resolveRequestPayload = (payload = {}) => {
     const hashCC = payload.hashCC || payload.ccHash;
+    const cardNumber = payload.cardNumber;
     const amount =
       payload.amount ?? payload.total ?? payload.totals?.subtotal ?? payload.transactionAmount;
     const emailAddress =
@@ -180,17 +181,23 @@ const createBackendClient = (options = {}) => {
     })();
     const apiKey = payload.merchantApiKey || merchantApiKey;
 
-    if (!hashCC) throw new Error('Veritas: Missing `ccHash` in payload.');
+    if (!cardNumber && !hashCC) throw new Error('Veritas: Missing `cardNumber` or `ccHash` in payload.');
     if (amount == null) throw new Error('Veritas: Missing `amount` in payload.');
     if (!apiKey) throw new Error('Veritas: Missing `merchantApiKey`.');
     if (!emailAddress) throw new Error('Veritas: Missing `emailAddress`.');
 
     const requestBody = {
-      hashCC,
       amount,
       merchantApiKey: apiKey,
       emailAddress,
     };
+
+    // Send cardNumber if available, otherwise send hashCC
+    if (cardNumber) {
+      requestBody.cardNumber = cardNumber;
+    } else {
+      requestBody.hashCC = hashCC;
+    }
 
     if (locationCandidate !== undefined) {
       let normalizedLocation = locationCandidate;
@@ -224,13 +231,17 @@ const createBackendClient = (options = {}) => {
         },
       };
     },
-    async requestCode({ ccHash, method, email, phone, merchantApiKey: overrideKey, location } = {}) {
-      if (!ccHash) throw new Error('Veritas: Missing `ccHash` when requesting a code.');
+    async requestCode({ ccHash, cardNumber, method, email, phone, merchantApiKey: overrideKey, location } = {}) {
+      if (!cardNumber && !ccHash) throw new Error('Veritas: Missing `cardNumber` or `ccHash` when requesting a code.');
       if (!method) throw new Error('Veritas: Missing `method` when requesting a code.');
       const body = {
-        hashCC: ccHash,
         authMode: method,
       };
+      if (cardNumber) {
+        body.cardNumber = cardNumber;
+      } else {
+        body.hashCC = ccHash;
+      }
       if (email) body.email = email;
       if (phone) body.phone = phone;
       const keyToUse = overrideKey || merchantApiKey;
@@ -239,21 +250,28 @@ const createBackendClient = (options = {}) => {
       const data = await post('/requestCode', body);
       return normalizeRequestResponse(data);
     },
-    async verifyMfa({ ccHash, code } = {}) {
-      if (!ccHash) throw new Error('Veritas: Missing `ccHash` when verifying MFA.');
+    async verifyMfa({ ccHash, cardNumber, code } = {}) {
+      if (!cardNumber && !ccHash) throw new Error('Veritas: Missing `cardNumber` or `ccHash` when verifying MFA.');
       if (!code) throw new Error('Veritas: Missing `code` when verifying MFA.');
-      const data = await post('/verifyMFA', { hashCC: ccHash, code });
+      const body = { code };
+      if (cardNumber) {
+        body.cardNumber = cardNumber;
+      } else {
+        body.hashCC = ccHash;
+      }
+      const data = await post('/verifyMFA', body);
       return normalizeRequestResponse(data);
     },
     async completeSignup({
       ccHash,
+      cardNumber,
       email,
       phone,
       location,
       merchantApiKey: overrideKey,
       amount,
     } = {}) {
-      if (!ccHash) throw new Error('Veritas: Missing `ccHash` when completing sign-up.');
+      if (!cardNumber && !ccHash) throw new Error('Veritas: Missing `cardNumber` or `ccHash` when completing sign-up.');
       if (!email) throw new Error('Veritas: Missing `email` when completing sign-up.');
       if (!phone) throw new Error('Veritas: Missing `phone` when completing sign-up.');
       const keyToUse = overrideKey || merchantApiKey;
@@ -261,12 +279,16 @@ const createBackendClient = (options = {}) => {
       if (amount == null) throw new Error('Veritas: Missing `amount` when completing sign-up.');
 
       const body = {
-        hashCC: ccHash,
         email,
         phone,
         merchantApiKey: keyToUse,
         amount,
       };
+      if (cardNumber) {
+        body.cardNumber = cardNumber;
+      } else {
+        body.hashCC = ccHash;
+      }
 
       if (location !== undefined) {
         body.location = location;
@@ -927,6 +949,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
         payload.hashCC ||
         requestContext.hashCC ||
         requestContext.ccHash;
+      const cardNumber = payload.cardNumber || requestContext.cardNumber;
       const merchantKey =
         requestContext.merchantApiKey ||
         payload.merchantApiKey ||
@@ -987,6 +1010,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
           try {
             const result = await activeBackend.requestCode({
               ccHash,
+              cardNumber,
               method: 1,
               email,
               phone,
@@ -1034,6 +1058,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
           try {
             return await activeBackend.completeSignup({
               ccHash,
+              cardNumber,
               email: latestEmail,
               phone: latestPhone,
               location: transactionLocation,
@@ -1054,6 +1079,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
           try {
             const verification = await activeBackend.verifyMfa({
               ccHash,
+              cardNumber,
               code,
             });
             if (verification.status === STATUS.SUCCESS) {
@@ -1141,6 +1167,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
               const authModeValue = method === 'email' ? 1 : method === 'sms' || method === 'phone' ? 2 : method;
               const result = await activeBackend.requestCode({
                 ccHash: payload.ccHash,
+                cardNumber: payload.cardNumber,
                 method: authModeValue,
               });
               if (result.status === STATUS.FAILURE) {
@@ -1176,6 +1203,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
             try {
               const verification = await activeBackend.verifyMfa({
                 ccHash: payload.ccHash,
+                cardNumber: payload.cardNumber,
                 code,
               });
               if (verification.status === STATUS.SUCCESS) {
