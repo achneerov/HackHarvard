@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cuppa Collective | Fake Stripe Checkout</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-50">
+    <header class="bg-white border-b border-slate-200">
+      <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
+        <a href="index.html" class="text-xl font-semibold text-slate-900">Cuppa Collective</a>
+        <nav class="flex items-center gap-6 text-sm">
+          <a class="text-slate-600 hover:text-slate-900" href="cart.html">Back to cart</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-5xl px-4 py-10">
+      <div class="grid gap-8 lg:grid-cols-[1.2fr,1fr]">
+        <section class="rounded-2xl bg-white p-8 shadow-sm border border-slate-200">
+          <h1 class="text-2xl font-semibold text-slate-900">Fake Stripe Payment</h1>
+          <p class="mt-2 text-sm text-slate-600">Use 4111 1111 1111 1111 to trigger MFA, 4000 0000 0000 0000 to trigger failure, otherwise payment will succeed.</p>
+
+          <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm" data-role="status" data-variant="info">
+            Enter your card details to continue.
+          </div>
+
+          <form class="mt-6 space-y-6" data-role="card-form">
+            <div>
+              <label class="text-sm font-medium text-slate-700" for="cardName">Cardholder name</label>
+              <input id="cardName" name="cardName" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Jane Doe" />
+            </div>
+            <div>
+              <label class="text-sm font-medium text-slate-700" for="cardNumber">Card number</label>
+              <input id="cardNumber" name="cardNumber" required inputmode="numeric" autocomplete="cc-number" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="4242 4242 4242 4242" />
+            </div>
+            <div class="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label class="text-sm font-medium text-slate-700" for="expMonth">Exp. month</label>
+                <input id="expMonth" name="expMonth" required inputmode="numeric" maxlength="2" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="MM" />
+              </div>
+              <div>
+                <label class="text-sm font-medium text-slate-700" for="expYear">Exp. year</label>
+                <input id="expYear" name="expYear" required inputmode="numeric" maxlength="4" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="YYYY" />
+              </div>
+              <div>
+                <label class="text-sm font-medium text-slate-700" for="cvc">CVC</label>
+                <input id="cvc" name="cvc" required inputmode="numeric" maxlength="4" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="123" />
+              </div>
+            </div>
+            <button class="w-full rounded-lg bg-indigo-600 py-3 text-sm font-semibold text-white hover:bg-indigo-700" data-role="pay-button">
+              Pay now
+            </button>
+          </form>
+        </section>
+
+        <aside class="space-y-6">
+          <section class="rounded-2xl bg-white p-6 shadow-sm border border-slate-200">
+            <h2 class="text-lg font-semibold text-slate-900">Order summary</h2>
+            <div class="mt-4 space-y-3" data-role="order-lines"></div>
+            <div class="mt-4 flex justify-between border-t border-slate-200 pt-4 text-sm font-semibold text-slate-900">
+              <span>Total</span>
+              <span data-role="order-total">$0.00</span>
+            </div>
+          </section>
+          <section class="rounded-2xl bg-white p-6 shadow-sm border border-slate-200">
+            <h2 class="text-lg font-semibold text-slate-900">Shipping to</h2>
+            <div class="mt-3 text-sm text-slate-600 space-y-1" data-role="shipping-summary"></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <div id="mfa-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 px-4">
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-slate-900">Multi-factor Authentication</h2>
+          <button data-role="close" class="text-slate-500 hover:text-slate-700">✕</button>
+        </div>
+        <p class="mt-2 text-sm" data-role="message"></p>
+        <div class="mt-4 space-y-4">
+          <div>
+            <label class="text-sm font-medium text-slate-700">Choose verification method</label>
+            <select data-role="method" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></select>
+          </div>
+          <div class="flex items-center gap-3">
+            <button data-role="request" class="rounded-lg border border-indigo-600 px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50">Request Code</button>
+            <span data-role="spinner" class="hidden text-xs text-slate-500">Processing…</span>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-slate-700">Enter 6-digit code</label>
+            <input data-role="code" maxlength="6" inputmode="numeric" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 tracking-[0.4em] text-center text-lg" />
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-3">
+          <button data-role="close" class="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button>
+          <button data-role="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Verify</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./authpay.js"></script>
+    <script type="module" src="./assets/js/payment-page.js"></script>
+  </body>
+</html>

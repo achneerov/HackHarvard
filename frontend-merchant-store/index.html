@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cuppa Collective | Items</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-50">
+    <header class="bg-white border-b border-slate-200">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+        <a href="index.html" class="text-xl font-semibold text-slate-900">Cuppa Collective</a>
+        <nav class="flex items-center gap-6 text-sm">
+          <a class="text-slate-600 hover:text-slate-900" href="cart.html">Cart
+            <span class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold hidden" data-role="cart-count"></span>
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-4 py-10">
+      <div class="mb-8 text-center">
+        <h1 class="text-3xl font-bold text-slate-900">Featured Coffee Gear</h1>
+        <p class="mt-2 text-slate-600">Add items to your cart to walk through the AuthPay checkout experience.</p>
+      </div>
+      <section class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" data-role="product-grid"></section>
+    </main>
+
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 transform transition-all duration-300 ease-out translate-y-6 opacity-0" data-role="toast">
+    </div>
+
+    <script type="module" src="./assets/js/index-page.js"></script>
+  </body>
+</html>
