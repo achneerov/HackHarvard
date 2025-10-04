@@ -15,6 +15,20 @@ app.use(bodyParser.json());
 const dbPath = path.join(__dirname, 'database.db');
 const db = new sqlite3.Database(dbPath);
 
+// Ensure pending user table exists for onboarding flows
+db.run(`
+  CREATE TABLE IF NOT EXISTS PendingUsers (
+    cchash TEXT PRIMARY KEY,
+    email TEXT,
+    phone TEXT,
+    authCode TEXT,
+    location TEXT,
+    merchantApiKey TEXT,
+    verified INTEGER DEFAULT 0,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 // Auth method mapping
 const AUTH_METHODS = {
   email: 1,
@@ -47,11 +61,24 @@ function getEnabledAuthMethods(user) {
 
 // Helper function to log MFA events
 function logMFAEvent(cchash, transactionAmount, location, merchantApiKey, status) {
+  const allowedStatuses = new Set([STATUS.FAILURE, STATUS.SUCCESS, STATUS.AUTH_REQUIRED]);
+  let persistedStatus = status;
+
+  if (!allowedStatuses.has(status)) {
+    persistedStatus = status === STATUS.SIGN_UP_REQUIRED ? STATUS.AUTH_REQUIRED : STATUS.FAILURE;
+    console.warn('[AuthPay] logMFAEvent received unsupported status. Coercing value.', {
+      requestedStatus: status,
+      persistedStatus,
+      cchash,
+      merchantApiKey,
+    });
+  }
+
   return new Promise((resolve, reject) => {
     db.run(
       `INSERT INTO MFAEvents (cchash, transactionAmount, location, merchantApiKey, status)
        VALUES (?, ?, ?, ?, ?)`,
-      [cchash, transactionAmount, location, merchantApiKey, status],
+      [cchash, transactionAmount, location, merchantApiKey, persistedStatus],
       function(err) {
         if (err) reject(err);
         else resolve(this.lastID);
@@ -227,7 +254,7 @@ app.post('/api/processTransaction', async (req, res) => {
 
 // Endpoint 2: Request Code
 app.post('/api/requestCode', async (req, res) => {
-  const { hashCC, authMode } = req.body;
+  const { hashCC, authMode, email, phone, merchantApiKey, location } = req.body;
 
   try {
     // Get user
@@ -238,18 +265,52 @@ app.post('/api/requestCode', async (req, res) => {
       });
     });
 
-    if (!user) {
-      return res.json({ status: STATUS.FAILURE, message: 'User not found' });
-    }
-
     // Generate random 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Update user's authCode
+    if (user) {
+      // Update user's authCode for existing profiles
+      await new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE Users SET authCode = ? WHERE cchash = ?',
+          [code, hashCC],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+
+      console.log(`[AUTH CODE] User: ${hashCC}, Method: ${authMode}, Code: ${code}`);
+
+      return res.json({
+        status: STATUS.SUCCESS,
+        message: 'Code sent successfully',
+        // Remove in production - only for testing
+        debug_code: code
+      });
+    }
+
+    if (!email || !phone) {
+      return res.json({
+        status: STATUS.FAILURE,
+        message: 'Sign-up requires both email and phone number'
+      });
+    }
+
     await new Promise((resolve, reject) => {
       db.run(
-        'UPDATE Users SET authCode = ? WHERE cchash = ?',
-        [code, hashCC],
+        `INSERT INTO PendingUsers (cchash, email, phone, authCode, location, merchantApiKey, verified, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+         ON CONFLICT(cchash) DO UPDATE SET
+           email = excluded.email,
+           phone = excluded.phone,
+           authCode = excluded.authCode,
+           location = excluded.location,
+           merchantApiKey = excluded.merchantApiKey,
+           verified = 0,
+           createdAt = CURRENT_TIMESTAMP`,
+        [hashCC, email, phone, code, location || null, merchantApiKey || null],
         function(err) {
           if (err) reject(err);
           else resolve();
@@ -257,14 +318,13 @@ app.post('/api/requestCode', async (req, res) => {
       );
     });
 
-    // TODO: Send code via selected method (email, SMS, etc.)
-    // For now, we'll just log it (in production, integrate with email/SMS service)
-    console.log(`[AUTH CODE] User: ${hashCC}, Method: ${authMode}, Code: ${code}`);
+    console.log(
+      `[AUTH CODE][SIGNUP] Pending user: ${hashCC}, Method: ${authMode}, Code: ${code}`
+    );
 
     res.json({
       status: STATUS.SUCCESS,
-      message: 'Code sent successfully',
-      // Remove in production - only for testing
+      message: 'Sign-up code sent successfully',
       debug_code: code
     });
 
@@ -288,7 +348,42 @@ app.post('/api/verifyMFA', async (req, res) => {
     });
 
     if (!user) {
-      return res.json({ status: STATUS.FAILURE, message: 'User not found' });
+      // Check pending sign-ups
+      const pendingUser = await new Promise((resolve, reject) => {
+        db.get('SELECT * FROM PendingUsers WHERE cchash = ?', [hashCC], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+
+      if (!pendingUser) {
+        return res.json({ status: STATUS.FAILURE, message: 'User not found' });
+      }
+
+      if (!pendingUser.authCode) {
+        return res.json({ status: STATUS.FAILURE, message: 'No code generated' });
+      }
+
+      if (pendingUser.authCode === code) {
+        await new Promise((resolve, reject) => {
+          db.run(
+            'UPDATE PendingUsers SET authCode = NULL, verified = 1 WHERE cchash = ?',
+            [hashCC],
+            function(err) {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+
+        return res.json({
+          status: STATUS.SUCCESS,
+          message: 'Authentication successful',
+          pendingSignup: true
+        });
+      }
+
+      return res.json({ status: STATUS.AUTH_REQUIRED, message: 'Invalid code' });
     }
 
     if (!user.authCode) {
@@ -320,7 +415,130 @@ app.post('/api/verifyMFA', async (req, res) => {
   }
 });
 
-// Endpoint 4: Merchant Login
+// Endpoint 4: Register User After Sign-Up Verification
+app.post('/api/registerUser', async (req, res) => {
+  const { hashCC, email, phone, location, merchantApiKey, amount } = req.body;
+
+  if (!hashCC || !email || !phone || !merchantApiKey || amount == null) {
+    return res.json({
+      status: STATUS.FAILURE,
+      message: 'Missing required registration details'
+    });
+  }
+
+  try {
+    const merchantExists = await new Promise((resolve, reject) => {
+      db.get('SELECT 1 FROM MerchantApiKeys WHERE apiKey = ?', [merchantApiKey], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!merchantExists) {
+      return res.json({ status: STATUS.FAILURE, message: 'Invalid merchant API key' });
+    }
+
+    const existingUser = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM Users WHERE cchash = ?', [hashCC], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    const pendingUser = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM PendingUsers WHERE cchash = ?', [hashCC], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!existingUser && !pendingUser) {
+      return res.json({ status: STATUS.FAILURE, message: 'No pending registration found' });
+    }
+
+    if (!existingUser && pendingUser && !pendingUser.verified) {
+      return res.json({ status: STATUS.FAILURE, message: 'Verification code not confirmed yet' });
+    }
+
+    const resolvedLocation = location || pendingUser?.location || existingUser?.signUpLocation || null;
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO Users (cchash, email, phone, otp, biometric, hardwareToken, authCode, signUpLocation)
+         VALUES (?, ?, ?, NULL, NULL, NULL, NULL, ?)
+         ON CONFLICT(cchash) DO UPDATE SET
+           email = excluded.email,
+           phone = excluded.phone,
+           signUpLocation = excluded.signUpLocation`,
+        [hashCC, email, phone, resolvedLocation],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    const userRecord = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM Users WHERE cchash = ?', [hashCC], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    const numericAmount = typeof amount === 'number' ? amount : parseFloat(amount);
+    if (Number.isNaN(numericAmount)) {
+      return res.json({ status: STATUS.FAILURE, message: 'Invalid amount' });
+    }
+    const transactionLocation = resolvedLocation;
+    const userHomeLocation = userRecord?.signUpLocation || resolvedLocation;
+
+    const ruleStatus = await evaluateRules(
+      merchantApiKey,
+      numericAmount,
+      transactionLocation,
+      new Date(),
+      userHomeLocation
+    );
+
+    await logMFAEvent(hashCC, numericAmount, transactionLocation, merchantApiKey, ruleStatus);
+
+    if (pendingUser) {
+      await new Promise((resolve, reject) => {
+        db.run('DELETE FROM PendingUsers WHERE cchash = ?', [hashCC], function(err) {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    }
+
+    if (ruleStatus === STATUS.FAILURE) {
+      console.warn('[AuthPay] registerUser denied by rules', {
+        merchantApiKey,
+        hashCC,
+        amount: numericAmount,
+        location: transactionLocation,
+      });
+      return res.json({ status: STATUS.FAILURE, message: 'Transaction denied' });
+    }
+
+    console.log('[AuthPay] registerUser approved', {
+      merchantApiKey,
+      hashCC,
+      amount: numericAmount,
+      location: transactionLocation,
+    });
+
+    res.json({
+      status: STATUS.SUCCESS,
+      message: 'User registered and transaction approved'
+    });
+  } catch (error) {
+    console.error('Error in registerUser:', error);
+    res.status(500).json({ status: STATUS.FAILURE, message: 'Internal server error' });
+  }
+});
+
+// Endpoint 5: Merchant Login
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -355,7 +573,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Endpoint 5: Get Rules
+// Endpoint 6: Get Rules
 app.get('/api/rules', async (req, res) => {
   const { merchantApiKey } = req.query;
 
@@ -382,7 +600,7 @@ app.get('/api/rules', async (req, res) => {
   }
 });
 
-// Endpoint 6: Create Rule
+// Endpoint 7: Create Rule
 app.post('/api/rules', async (req, res) => {
   const { merchantApiKey, priority, amount, location, timeStart, timeEnd, condition, successStatus } = req.body;
 
@@ -410,7 +628,7 @@ app.post('/api/rules', async (req, res) => {
   }
 });
 
-// Endpoint 7: Update Rule
+// Endpoint 8: Update Rule
 app.put('/api/rules/:id', async (req, res) => {
   const { id } = req.params;
   const { merchantApiKey, priority, amount, location, timeStart, timeEnd, condition, successStatus } = req.body;
@@ -439,7 +657,7 @@ app.put('/api/rules/:id', async (req, res) => {
   }
 });
 
-// Endpoint 8: Delete Rule
+// Endpoint 9: Delete Rule
 app.delete('/api/rules/:id', async (req, res) => {
   const { id } = req.params;
   const { merchantApiKey } = req.query;
@@ -467,7 +685,7 @@ app.delete('/api/rules/:id', async (req, res) => {
   }
 });
 
-// Endpoint 9: Get Dashboard Stats
+// Endpoint 10: Get Dashboard Stats
 app.get('/api/dashboard/stats', async (req, res) => {
   const { merchantApiKey, timePeriod = 'all' } = req.query;
 

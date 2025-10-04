@@ -2,12 +2,14 @@ const STATUS = {
   FAILURE: 'FAILURE',
   SUCCESS: 'SUCCESS',
   AUTH_REQUIRED: 'AUTH_REQUIRED',
+  SIGN_UP_REQUIRED: 'SIGN_UP_REQUIRED',
 };
 
 const NUMERIC_STATUS = {
   0: STATUS.FAILURE,
   1: STATUS.SUCCESS,
   2: STATUS.AUTH_REQUIRED,
+  3: STATUS.SIGN_UP_REQUIRED,
 };
 
 const METHOD_LABELS = {
@@ -209,18 +211,64 @@ const createBackendClient = (options = {}) => {
     async processTransaction(payload) {
       const requestBody = resolveRequestPayload(payload);
       const data = await post('/processTransaction', requestBody);
-      return normalizeTransactionResponse(data);
+      const normalized = normalizeTransactionResponse(data);
+      return {
+        ...normalized,
+        context: {
+          requestBody,
+          originalPayload: payload,
+        },
+      };
     },
-    async requestCode({ ccHash, method } = {}) {
+    async requestCode({ ccHash, method, email, phone, merchantApiKey: overrideKey, location } = {}) {
       if (!ccHash) throw new Error('AuthPay: Missing `ccHash` when requesting a code.');
       if (!method) throw new Error('AuthPay: Missing `method` when requesting a code.');
-      const data = await post('/requestCode', { hashCC: ccHash, authMode: method });
+      const body = {
+        hashCC: ccHash,
+        authMode: method,
+      };
+      if (email) body.email = email;
+      if (phone) body.phone = phone;
+      const keyToUse = overrideKey || merchantApiKey;
+      if (keyToUse) body.merchantApiKey = keyToUse;
+      if (location !== undefined) body.location = location;
+      const data = await post('/requestCode', body);
       return normalizeRequestResponse(data);
     },
     async verifyMfa({ ccHash, code } = {}) {
       if (!ccHash) throw new Error('AuthPay: Missing `ccHash` when verifying MFA.');
       if (!code) throw new Error('AuthPay: Missing `code` when verifying MFA.');
       const data = await post('/verifyMFA', { hashCC: ccHash, code });
+      return normalizeRequestResponse(data);
+    },
+    async completeSignup({
+      ccHash,
+      email,
+      phone,
+      location,
+      merchantApiKey: overrideKey,
+      amount,
+    } = {}) {
+      if (!ccHash) throw new Error('AuthPay: Missing `ccHash` when completing sign-up.');
+      if (!email) throw new Error('AuthPay: Missing `email` when completing sign-up.');
+      if (!phone) throw new Error('AuthPay: Missing `phone` when completing sign-up.');
+      const keyToUse = overrideKey || merchantApiKey;
+      if (!keyToUse) throw new Error('AuthPay: Missing `merchantApiKey` when completing sign-up.');
+      if (amount == null) throw new Error('AuthPay: Missing `amount` when completing sign-up.');
+
+      const body = {
+        hashCC: ccHash,
+        email,
+        phone,
+        merchantApiKey: keyToUse,
+        amount,
+      };
+
+      if (location !== undefined) {
+        body.location = location;
+      }
+
+      const data = await post('/registerUser', body);
       return normalizeRequestResponse(data);
     },
   };
@@ -428,7 +476,18 @@ const ensureAuthPayModal = () => {
       <span class="authpay-mfa-chip">AuthPay Shield</span>
       <h2 id="authpay-mfa-title" class="authpay-mfa-heading">Multi-Factor Checkpoint</h2>
       <p class="authpay-mfa-copy">Confirm this maison purchase with a one-time code delivered through your preferred channel.</p>
-      <div class="authpay-mfa-field">
+      <div class="authpay-mfa-section authpay-mfa-hidden" data-authpay-signup>
+        <div class="authpay-mfa-field">
+          <label class="authpay-mfa-label" for="authpay-signup-email">Email Address</label>
+          <input id="authpay-signup-email" class="authpay-mfa-input" type="email" data-authpay-signup-email placeholder="name@example.com" autocomplete="email" />
+        </div>
+        <div class="authpay-mfa-field">
+          <label class="authpay-mfa-label" for="authpay-signup-phone">Phone Number</label>
+          <input id="authpay-signup-phone" class="authpay-mfa-input" type="tel" data-authpay-signup-phone placeholder="+1 555 555 5555" autocomplete="tel" />
+        </div>
+        <button type="button" class="authpay-mfa-button authpay-mfa-request" data-authpay-signup-submit>Confirm & Send Code</button>
+      </div>
+      <div class="authpay-mfa-field" data-authpay-method-block>
         <label class="authpay-mfa-label" for="authpay-mfa-method">Verification Channel</label>
         <select id="authpay-mfa-method" class="authpay-mfa-select" data-authpay-method></select>
       </div>
@@ -448,14 +507,58 @@ const ensureAuthPayModal = () => {
   const dialog = overlay.querySelector('.authpay-mfa-dialog');
   const closeButton = overlay.querySelector('[data-authpay-close]');
   const methodSelect = overlay.querySelector('[data-authpay-method]');
+  const methodBlock = overlay.querySelector('[data-authpay-method-block]');
   const requestButton = overlay.querySelector('[data-authpay-request]');
   const codeBlock = overlay.querySelector('[data-authpay-code-block]');
   const codeInput = overlay.querySelector('[data-authpay-code]');
   const submitButton = overlay.querySelector('[data-authpay-submit]');
   const statusMessage = overlay.querySelector('[data-authpay-status]');
+  const signupSection = overlay.querySelector('[data-authpay-signup]');
+  const signupEmailInput = overlay.querySelector('[data-authpay-signup-email]');
+  const signupPhoneInput = overlay.querySelector('[data-authpay-signup-phone]');
+  const signupButton = overlay.querySelector('[data-authpay-signup-submit]');
+  const chipElement = overlay.querySelector('.authpay-mfa-chip');
+  const headingElement = overlay.querySelector('.authpay-mfa-heading');
+  const copyElement = overlay.querySelector('.authpay-mfa-copy');
+
+  const defaultSurfaceText = {
+    chip: chipElement?.textContent || '',
+    heading: headingElement?.textContent || '',
+    copy: copyElement?.textContent || '',
+  };
 
   let currentHandlers = null;
   const elementsRequiringCode = [codeBlock, submitButton];
+
+  const applySurfaceText = ({ chipText, headline, copyText } = {}) => {
+    if (chipElement) {
+      chipElement.textContent = chipText ?? defaultSurfaceText.chip;
+    }
+    if (headingElement) {
+      headingElement.textContent = headline ?? defaultSurfaceText.heading;
+    }
+    if (copyElement) {
+      copyElement.textContent = copyText ?? defaultSurfaceText.copy;
+    }
+  };
+
+  const setSignupValues = ({ email = '', phone = '' } = {}) => {
+    if (signupEmailInput) signupEmailInput.value = email;
+    if (signupPhoneInput) signupPhoneInput.value = phone;
+  };
+
+  const getSignupValues = () => ({
+    email: signupEmailInput?.value?.trim() || '',
+    phone: signupPhoneInput?.value?.trim() || '',
+  });
+
+  const setMode = (mode = 'mfa') => {
+    overlay.dataset.authpayMode = mode;
+    const isSignup = mode === 'signup';
+    signupSection?.classList.toggle('authpay-mfa-hidden', !isSignup);
+    methodBlock?.classList.toggle('authpay-mfa-hidden', isSignup);
+    requestButton?.classList.toggle('authpay-mfa-hidden', isSignup);
+  };
 
   const clearStatus = () => {
     statusMessage.textContent = '';
@@ -483,6 +586,9 @@ const ensureAuthPayModal = () => {
     codeInput.value = '';
     currentHandlers = null;
     setCodeEntryVisible(false);
+    setSignupValues();
+    setMode('mfa');
+    applySurfaceText();
   };
 
   const runSafely = async (button, handler, payload) => {
@@ -496,7 +602,18 @@ const ensureAuthPayModal = () => {
   };
 
   const api = {
-    open({ methods, onRequestCode, onSubmitCode, onCancel }) {
+    open({
+      mode = 'mfa',
+      methods,
+      onRequestCode,
+      onSubmitCode,
+      onSubmitSignup,
+      onCancel,
+      signupValues,
+      headline,
+      copy,
+      chipText,
+    } = {}) {
       const methodList = Array.isArray(methods) ? methods : [];
       methodSelect.innerHTML = '';
       methodList.forEach((method) => {
@@ -506,13 +623,20 @@ const ensureAuthPayModal = () => {
         methodSelect.appendChild(option);
       });
 
-      currentHandlers = { onRequestCode, onSubmitCode, onCancel };
+      currentHandlers = { onRequestCode, onSubmitCode, onSubmitSignup, onCancel };
       codeInput.value = '';
       clearStatus();
+      applySurfaceText({ chipText, headline, copyText: copy });
+      setSignupValues(signupValues);
+      setMode(mode);
       setCodeEntryVisible(false);
       overlay.classList.add('is-visible');
       overlay.setAttribute('aria-hidden', 'false');
-      dialog.focus();
+      if (mode === 'signup') {
+        signupEmailInput?.focus();
+      } else {
+        dialog.focus();
+      }
     },
     close() {
       closeOverlay();
@@ -536,6 +660,15 @@ const ensureAuthPayModal = () => {
         methodSelect.appendChild(option);
       });
     },
+    setSignupValues(values) {
+      setSignupValues(values);
+    },
+    getSignupValues() {
+      return getSignupValues();
+    },
+    setMode(mode) {
+      setMode(mode);
+    },
     showCodeEntry() {
       setCodeEntryVisible(true);
     },
@@ -543,6 +676,18 @@ const ensureAuthPayModal = () => {
       setCodeEntryVisible(false);
     },
   };
+
+  if (signupButton) {
+    signupButton.addEventListener('click', () => {
+      if (!currentHandlers?.onSubmitSignup) return;
+      const values = getSignupValues();
+      if (!values.email || !values.phone) {
+        api.setStatus('failure', 'Please provide both email and phone number.');
+        return;
+      }
+      runSafely(signupButton, () => currentHandlers.onSubmitSignup(values));
+    });
+  }
 
   requestButton.addEventListener('click', () => {
     if (!currentHandlers?.onRequestCode) return;
@@ -657,7 +802,10 @@ const createDefaultUI = ({
       });
     },
     showMfa(config) {
-      modal.open(config);
+      modal.open({ ...config, mode: 'mfa' });
+    },
+    showSignup(config = {}) {
+      modal.open({ ...config, mode: 'signup' });
     },
     hideMfa() {
       modal.close();
@@ -667,6 +815,12 @@ const createDefaultUI = ({
     },
     updateMfaMethods(methods) {
       modal.updateMethods?.(methods);
+    },
+    updateSignupValues(values) {
+      modal.setSignupValues?.(values);
+    },
+    getSignupValues() {
+      return modal.getSignupValues?.();
     },
     showCodeEntry() {
       modal.showCodeEntry?.();
@@ -711,6 +865,11 @@ const resolveBackendClient = (backend) => {
       legacyWebhook.verifyMfa?.bind(legacyWebhook) ||
       legacyWebhook.verifyMFA?.bind(legacyWebhook) ||
       baseBackend.verifyMfa,
+    completeSignup:
+      backend.completeSignup ||
+      backend.registerUser ||
+      legacyWebhook.completeSignup?.bind(legacyWebhook) ||
+      baseBackend.completeSignup,
   };
 };
 
@@ -753,6 +912,202 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
       );
       invoke('toggleProcessing', false);
       return response;
+    }
+
+    if (response.status === STATUS.SIGN_UP_REQUIRED) {
+      const requestContext = response.context?.requestBody || {};
+      const ccHash =
+        payload.ccHash ||
+        payload.hashCC ||
+        requestContext.hashCC ||
+        requestContext.ccHash;
+      const merchantKey =
+        requestContext.merchantApiKey ||
+        payload.merchantApiKey ||
+        backend?.merchantApiKey;
+      const transactionAmount =
+        requestContext.amount ??
+        payload.amount ??
+        payload.total ??
+        payload.totals?.subtotal ??
+        payload.transactionAmount;
+      const transactionLocation =
+        requestContext.location ??
+        payload.location ??
+        payload.customer?.city ??
+        payload.customer?.country ??
+        null;
+      const defaultEmail =
+        requestContext.emailAddress ||
+        payload.emailAddress ||
+        payload.customer?.email ||
+        payload.customer?.emailAddress ||
+        '';
+      const defaultPhone =
+        payload.phone ||
+        payload.customer?.phone ||
+        payload.customer?.phoneNumber ||
+        '';
+
+      invoke(
+        'showStatus',
+        'info',
+        'First-time customer detected. Complete sign-up to continue.'
+      );
+
+      return new Promise((resolve) => {
+        let latestEmail = defaultEmail;
+        let latestPhone = defaultPhone;
+
+        const finalize = (result) => {
+          invoke('toggleProcessing', false);
+          resolve(result);
+        };
+
+        const handleCancel = () => {
+          const failure = {
+            status: STATUS.FAILURE,
+            reason: 'Transaction cancelled, please contact merchant.',
+          };
+          invoke('hideMfa');
+          finalize(failure);
+        };
+
+        const requestSignupCode = async ({ email, phone }) => {
+          latestEmail = email;
+          latestPhone = phone;
+          invoke('setMfaStatus', 'info', 'Sending verification code...');
+          invoke('hideCodeEntry');
+          try {
+            const result = await activeBackend.requestCode({
+              ccHash,
+              method: 'email',
+              email,
+              phone,
+              merchantApiKey: merchantKey,
+              location: transactionLocation,
+            });
+            if (result.status === STATUS.SUCCESS) {
+              invoke(
+                'setMfaStatus',
+                'success',
+                result.message || 'Check your email for the verification code.'
+              );
+              invoke('showCodeEntry');
+            } else {
+              invoke(
+                'setMfaStatus',
+                'failure',
+                result.message || 'Unable to deliver the verification code.'
+              );
+            }
+            return result;
+          } catch (error) {
+            invoke(
+              'setMfaStatus',
+              'failure',
+              'Network issue while requesting the code. Please retry.'
+            );
+            return {
+              status: STATUS.FAILURE,
+              reason: error?.message,
+            };
+          }
+        };
+
+        const sendCompletion = async () => {
+          if (typeof activeBackend.completeSignup !== 'function') {
+            return { status: STATUS.SUCCESS };
+          }
+          if (!merchantKey || transactionAmount == null) {
+            return {
+              status: STATUS.FAILURE,
+              message: 'Missing merchant context for completing sign-up.',
+            };
+          }
+          try {
+            return await activeBackend.completeSignup({
+              ccHash,
+              email: latestEmail,
+              phone: latestPhone,
+              location: transactionLocation,
+              merchantApiKey: merchantKey,
+              amount: transactionAmount,
+            });
+          } catch (error) {
+            return {
+              status: STATUS.FAILURE,
+              message: 'Unable to complete registration.',
+              reason: error?.message,
+            };
+          }
+        };
+
+        const submitCode = async (code) => {
+          invoke('setMfaStatus', 'info', 'Validating code...');
+          try {
+            const verification = await activeBackend.verifyMfa({
+              ccHash,
+              code,
+            });
+            if (verification.status === STATUS.SUCCESS) {
+              const completion = await sendCompletion();
+              if (completion.status === STATUS.FAILURE) {
+                invoke(
+                  'setMfaStatus',
+                  'failure',
+                  completion.message || 'Registration failed. Please try again.'
+                );
+                return;
+              }
+              invoke(
+                'setMfaStatus',
+                'success',
+                completion.message || 'Registration confirmed. Completing transaction...'
+              );
+              invoke('hideMfa');
+              finalize({
+                ...completion,
+                status: STATUS.SUCCESS,
+              });
+            } else if (verification.status === STATUS.AUTH_REQUIRED) {
+              invoke('showCodeEntry');
+              invoke(
+                'setMfaStatus',
+                'failure',
+                verification.message ||
+                  'Code mismatch. Please try again or request a new code.'
+              );
+            } else {
+              invoke(
+                'setMfaStatus',
+                'failure',
+                verification.message || 'Verification failed. Transaction cancelled.'
+              );
+              invoke('hideMfa');
+              finalize(verification);
+            }
+          } catch (error) {
+            invoke('showCodeEntry');
+            invoke(
+              'setMfaStatus',
+              'failure',
+              'Network issue while verifying the code. Please retry.'
+            );
+          }
+        };
+
+        invoke('showSignup', {
+          signupValues: { email: defaultEmail, phone: defaultPhone },
+          onSubmitSignup: requestSignupCode,
+          onSubmitCode: submitCode,
+          onCancel: handleCancel,
+          headline: 'Create AuthPay Profile',
+          copy: 'Provide your email and phone to finish verifying this purchase.',
+          chipText: 'AuthPay Onboarding',
+        });
+        invoke('setMfaStatus', 'info', 'Enter your contact details to get started.');
+      });
     }
 
     if (response.status !== STATUS.AUTH_REQUIRED) {

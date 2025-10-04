@@ -63,7 +63,7 @@ db.serialize(() => {
       transactionAmount REAL,
       location TEXT,
       merchantApiKey TEXT,
-      status INTEGER CHECK(status IN (0, 1, 2)),
+      status INTEGER CHECK(status IN (0, 1, 2, 3)),
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (cchash) REFERENCES Users(cchash),
       FOREIGN KEY (merchantApiKey) REFERENCES MerchantApiKeys(apiKey)
