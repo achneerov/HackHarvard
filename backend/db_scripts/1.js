@@ -120,23 +120,47 @@ db.serialize(() => {
     });
   });
 
-  // Insert 50 MFA events
+  // Insert 500 MFA events across the last month with realistic distribution (90% success)
   const locations = ['New York', 'Los Angeles', 'Chicago', 'Boston', 'Miami', 'Seattle', 'Austin', 'Denver'];
-  const statuses = [0, 1, 2]; // FAILURE, SUCCESS, AUTH_REQUIRED
   const userHashes = ['hash001', 'hash002', 'hash003', 'hash004', 'hash005'];
+  const totalTransactions = 500;
 
-  for (let i = 0; i < 50; i++) {
+  // Generate realistic status distribution: ~90% success, ~5% failure, ~5% auth required
+  function getRealisticStatus() {
+    const rand = Math.random();
+    if (rand < 0.90) return 1; // SUCCESS (90%)
+    if (rand < 0.95) return 2; // AUTH_REQUIRED (5%)
+    return 0; // FAILURE (5%)
+  }
+
+  // Generate timestamp in the last 30 days
+  function getRandomTimestamp() {
+    const now = new Date();
+    const daysAgo = Math.floor(Math.random() * 30); // 0-29 days ago
+    const hoursAgo = Math.floor(Math.random() * 24);
+    const minutesAgo = Math.floor(Math.random() * 60);
+
+    const timestamp = new Date(now);
+    timestamp.setDate(timestamp.getDate() - daysAgo);
+    timestamp.setHours(timestamp.getHours() - hoursAgo);
+    timestamp.setMinutes(timestamp.getMinutes() - minutesAgo);
+
+    return timestamp.toISOString().replace('T', ' ').substring(0, 19);
+  }
+
+  for (let i = 0; i < totalTransactions; i++) {
     const cchash = userHashes[Math.floor(Math.random() * userHashes.length)];
     const amount = (Math.random() * 2000).toFixed(2);
     const location = locations[Math.floor(Math.random() * locations.length)];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const status = getRealisticStatus();
+    const timestamp = getRandomTimestamp();
 
-    db.run(`INSERT INTO MFAEvents (cchash, transactionAmount, location, merchantApiKey, status)
-            VALUES (?, ?, ?, ?, ?)`,
-      [cchash, amount, location, 'merchant_key_abc123', status],
+    db.run(`INSERT INTO MFAEvents (cchash, transactionAmount, location, merchantApiKey, status, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      [cchash, amount, location, 'merchant_key_abc123', status, timestamp],
       function(err) {
         if (err) console.error(`Error inserting MFA event ${i + 1}:`, err);
-        else if (i === 49) console.log(`✓ Inserted 50 MFA events`);
+        else if (i === totalTransactions - 1) console.log(`✓ Inserted ${totalTransactions} MFA events`);
       }
     );
   }

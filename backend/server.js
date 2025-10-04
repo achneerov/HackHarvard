@@ -323,6 +323,243 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Endpoint 5: Get Rules
+app.get('/api/rules', async (req, res) => {
+  const { merchantApiKey } = req.query;
+
+  try {
+    if (!merchantApiKey) {
+      return res.status(400).json({ status: STATUS.FAILURE, message: 'Merchant API key required' });
+    }
+
+    const rules = await new Promise((resolve, reject) => {
+      db.all(
+        'SELECT * FROM Rules WHERE merchantApiKey = ? ORDER BY priority DESC',
+        [merchantApiKey],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+
+    res.json({ status: STATUS.SUCCESS, data: rules });
+  } catch (error) {
+    console.error('Error fetching rules:', error);
+    res.status(500).json({ status: STATUS.FAILURE, message: 'Internal server error' });
+  }
+});
+
+// Endpoint 6: Create Rule
+app.post('/api/rules', async (req, res) => {
+  const { merchantApiKey, priority, amount, location, timeStart, timeEnd, condition, successStatus } = req.body;
+
+  try {
+    if (!merchantApiKey) {
+      return res.status(400).json({ status: STATUS.FAILURE, message: 'Merchant API key required' });
+    }
+
+    const result = await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO Rules (merchantApiKey, priority, amount, location, timeStart, timeEnd, condition, successStatus)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [merchantApiKey, priority, amount, location, timeStart, timeEnd, condition, successStatus],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.lastID);
+        }
+      );
+    });
+
+    res.json({ status: STATUS.SUCCESS, message: 'Rule created', ruleId: result });
+  } catch (error) {
+    console.error('Error creating rule:', error);
+    res.status(500).json({ status: STATUS.FAILURE, message: 'Internal server error' });
+  }
+});
+
+// Endpoint 7: Update Rule
+app.put('/api/rules/:id', async (req, res) => {
+  const { id } = req.params;
+  const { merchantApiKey, priority, amount, location, timeStart, timeEnd, condition, successStatus } = req.body;
+
+  try {
+    if (!merchantApiKey) {
+      return res.status(400).json({ status: STATUS.FAILURE, message: 'Merchant API key required' });
+    }
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE Rules SET priority = ?, amount = ?, location = ?, timeStart = ?, timeEnd = ?, condition = ?, successStatus = ?
+         WHERE ruleId = ? AND merchantApiKey = ?`,
+        [priority, amount, location, timeStart, timeEnd, condition, successStatus, id, merchantApiKey],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ status: STATUS.SUCCESS, message: 'Rule updated' });
+  } catch (error) {
+    console.error('Error updating rule:', error);
+    res.status(500).json({ status: STATUS.FAILURE, message: 'Internal server error' });
+  }
+});
+
+// Endpoint 8: Delete Rule
+app.delete('/api/rules/:id', async (req, res) => {
+  const { id } = req.params;
+  const { merchantApiKey } = req.query;
+
+  try {
+    if (!merchantApiKey) {
+      return res.status(400).json({ status: STATUS.FAILURE, message: 'Merchant API key required' });
+    }
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM Rules WHERE ruleId = ? AND merchantApiKey = ?',
+        [id, merchantApiKey],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ status: STATUS.SUCCESS, message: 'Rule deleted' });
+  } catch (error) {
+    console.error('Error deleting rule:', error);
+    res.status(500).json({ status: STATUS.FAILURE, message: 'Internal server error' });
+  }
+});
+
+// Endpoint 9: Get Dashboard Stats
+app.get('/api/dashboard/stats', async (req, res) => {
+  const { merchantApiKey } = req.query;
+
+  try {
+    if (!merchantApiKey) {
+      return res.status(400).json({ status: STATUS.FAILURE, message: 'Merchant API key required' });
+    }
+
+    // Get total transactions
+    const totalTransactions = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT COUNT(*) as count FROM MFAEvents WHERE merchantApiKey = ?',
+        [merchantApiKey],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row.count);
+        }
+      );
+    });
+
+    // Get success/failure/auth counts
+    const statusCounts = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT status, COUNT(*) as count FROM MFAEvents
+         WHERE merchantApiKey = ?
+         GROUP BY status`,
+        [merchantApiKey],
+        (err, rows) => {
+          if (err) reject(err);
+          else {
+            const counts = { success: 0, failure: 0, authRequired: 0 };
+            rows.forEach(row => {
+              if (row.status === STATUS.SUCCESS) counts.success = row.count;
+              else if (row.status === STATUS.FAILURE) counts.failure = row.count;
+              else if (row.status === STATUS.AUTH_REQUIRED) counts.authRequired = row.count;
+            });
+            resolve(counts);
+          }
+        }
+      );
+    });
+
+    // Get transaction timeline (last 7 days)
+    const timeline = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT
+          DATE(timestamp) as date,
+          SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as successful,
+          SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed,
+          SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as flagged
+         FROM MFAEvents
+         WHERE merchantApiKey = ? AND timestamp >= datetime('now', '-7 days')
+         GROUP BY DATE(timestamp)
+         ORDER BY date ASC`,
+        [merchantApiKey],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+
+    // Get location distribution
+    const locationStats = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT
+          location,
+          COUNT(*) as transactions,
+          SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as flagged
+         FROM MFAEvents
+         WHERE merchantApiKey = ?
+         GROUP BY location
+         ORDER BY transactions DESC
+         LIMIT 5`,
+        [merchantApiKey],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+
+    // Get per-customer stats
+    const customerStats = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT
+          u.email as name,
+          SUM(CASE WHEN e.status = 1 THEN 1 ELSE 0 END) as success,
+          SUM(CASE WHEN e.status != 1 THEN 1 ELSE 0 END) as failed
+         FROM MFAEvents e
+         JOIN Users u ON e.cchash = u.cchash
+         WHERE e.merchantApiKey = ?
+         GROUP BY u.email
+         ORDER BY (success + failed) DESC`,
+        [merchantApiKey],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+
+    const successRate = totalTransactions > 0
+      ? ((statusCounts.success / totalTransactions) * 100).toFixed(1)
+      : 0;
+
+    res.json({
+      status: STATUS.SUCCESS,
+      data: {
+        totalTransactions,
+        successRate,
+        statusCounts,
+        timeline,
+        locationStats,
+        customerStats
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in dashboard stats:', error);
+    res.status(500).json({ status: STATUS.FAILURE, message: 'Internal server error' });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
