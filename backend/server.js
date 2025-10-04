@@ -149,6 +149,12 @@ app.post('/api/processTransaction', async (req, res) => {
     });
 
     if (!merchantExists) {
+      console.warn('[AuthPay] processTransaction denied: invalid merchant', {
+        merchantApiKey,
+        hashCC,
+        amount,
+        location,
+      });
       await logMFAEvent(hashCC, amount, location, merchantApiKey, STATUS.FAILURE);
       return res.json({ status: STATUS.FAILURE, message: 'Invalid merchant API key' });
     }
@@ -162,6 +168,12 @@ app.post('/api/processTransaction', async (req, res) => {
     });
 
     if (!user) {
+      console.warn('[AuthPay] processTransaction denied: user not found', {
+        merchantApiKey,
+        hashCC,
+        amount,
+        location,
+      });
       await logMFAEvent(hashCC, amount, location, merchantApiKey, STATUS.SIGN_UP_REQUIRED);
       return res.json({
         status: STATUS.SIGN_UP_REQUIRED,
@@ -175,15 +187,35 @@ app.post('/api/processTransaction', async (req, res) => {
     await logMFAEvent(hashCC, amount, location, merchantApiKey, ruleStatus);
 
     if (ruleStatus === STATUS.SUCCESS) {
+      console.log('[AuthPay] processTransaction approved', {
+        merchantApiKey,
+        hashCC,
+        amount,
+        location,
+      });
       return res.json({ status: STATUS.SUCCESS, message: 'Transaction approved' });
     } else if (ruleStatus === STATUS.AUTH_REQUIRED) {
       const authMethods = getEnabledAuthMethods(user);
+      console.log('[AuthPay] processTransaction requires additional auth', {
+        merchantApiKey,
+        hashCC,
+        amount,
+        location,
+        authMethods,
+      });
       return res.json({
         status: STATUS.AUTH_REQUIRED,
         message: 'Authentication required',
         authMethods
       });
     } else {
+      console.warn('[AuthPay] processTransaction denied by rules', {
+        merchantApiKey,
+        hashCC,
+        amount,
+        location,
+        userSignUpLocation: user.signUpLocation,
+      });
       return res.json({ status: STATUS.FAILURE, message: 'Transaction denied' });
     }
 

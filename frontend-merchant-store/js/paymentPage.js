@@ -99,6 +99,11 @@ const buildPayload = async (formData) => {
     .filter(Boolean)
     .join(', ');
 
+  const preferCustomerLocation = backendConfig.preferCustomerLocation ?? false;
+  const location = preferCustomerLocation
+    ? locationSuggestion
+    : backendConfig.defaultLocation ?? null;
+
   return {
     cart,
     customer,
@@ -113,7 +118,8 @@ const buildPayload = async (formData) => {
       currency: 'USD',
     },
     amount: normalizedTotal,
-    location: locationSuggestion || backendConfig.defaultLocation || 'Online',
+    location,
+    useCustomerLocation: preferCustomerLocation,
     merchantApiKey: backendConfig.merchantApiKey,
     emailAddress: customer?.email,
   };

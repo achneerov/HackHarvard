@@ -158,12 +158,20 @@ const createBackendClient = (options = {}) => {
       payload.amount ?? payload.total ?? payload.totals?.subtotal ?? payload.transactionAmount;
     const emailAddress =
       payload.emailAddress || payload.customer?.email || payload.customer?.emailAddress;
-    const location =
-      payload.location ||
-      payload.customer?.city ||
-      payload.customer?.country ||
-      defaultLocation ||
-      'UNKNOWN';
+    const useCustomerLocation =
+      payload.useCustomerLocation ?? merged.useCustomerLocation ?? true;
+    const locationCandidate = (() => {
+      if (payload.location !== undefined) return payload.location;
+      if (!useCustomerLocation) {
+        return defaultLocation ?? null;
+      }
+      return (
+        payload.customer?.city ??
+        payload.customer?.country ??
+        defaultLocation ??
+        null
+      );
+    })();
     const apiKey = payload.merchantApiKey || merchantApiKey;
 
     if (!hashCC) throw new Error('AuthPay: Missing `ccHash` in payload.');
@@ -171,13 +179,29 @@ const createBackendClient = (options = {}) => {
     if (!apiKey) throw new Error('AuthPay: Missing `merchantApiKey`.');
     if (!emailAddress) throw new Error('AuthPay: Missing `emailAddress`.');
 
-    return {
+    const requestBody = {
       hashCC,
       amount,
-      location,
       merchantApiKey: apiKey,
       emailAddress,
     };
+
+    if (locationCandidate !== undefined) {
+      let normalizedLocation = locationCandidate;
+      if (typeof normalizedLocation === 'string') {
+        normalizedLocation = normalizedLocation.trim();
+        if (normalizedLocation === '') {
+          normalizedLocation = null;
+        }
+      }
+      requestBody.location = normalizedLocation ?? null;
+    }
+
+    if (payload.useCustomerLocation !== undefined) {
+      requestBody.useCustomerLocation = payload.useCustomerLocation;
+    }
+
+    return requestBody;
   };
 
   return {

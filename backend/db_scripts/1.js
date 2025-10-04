@@ -1,15 +1,15 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const sqlite3 = require("sqlite3").verbose();
+const path = require("path");
 
-const dbPath = path.join(__dirname, '../database.db');
+const dbPath = path.join(__dirname, "../database.db");
 const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
   // Drop ALL tables
   db.run(`SELECT name FROM sqlite_master WHERE type='table'`, (err, tables) => {
     if (!err && tables) {
-      tables.forEach(table => {
-        if (table.name !== 'sqlite_sequence') {
+      tables.forEach((table) => {
+        if (table.name !== "sqlite_sequence") {
           db.run(`DROP TABLE IF EXISTS ${table.name}`);
         }
       });
@@ -86,43 +86,116 @@ db.serialize(() => {
     )
   `);
 
-  console.log('Database tables created successfully!');
+  console.log("Database tables created successfully!");
 
   // Insert merchant API key
-  db.run(`INSERT INTO MerchantApiKeys (apiKey) VALUES (?)`, ['merchant_key_abc123'], function(err) {
-    if (err) console.error('Error inserting merchant API key:', err);
-    else console.log('✓ Inserted merchant API key');
-  });
+  db.run(
+    `INSERT INTO MerchantApiKeys (apiKey) VALUES (?)`,
+    ["merchant_key_abc123"],
+    function (err) {
+      if (err) console.error("Error inserting merchant API key:", err);
+      else console.log("✓ Inserted merchant API key");
+    }
+  );
 
   // Insert merchant
-  db.run(`INSERT INTO Merchants (email, password, merchantApiKey) VALUES (?, ?, ?)`,
-    ['merchant@gmail.com', 'password123', 'merchant_key_abc123'],
-    function(err) {
-      if (err) console.error('Error inserting merchant:', err);
-      else console.log('✓ Inserted merchant');
+  db.run(
+    `INSERT INTO Merchants (email, password, merchantApiKey) VALUES (?, ?, ?)`,
+    ["merchant@gmail.com", "password123", "merchant_key_abc123"],
+    function (err) {
+      if (err) console.error("Error inserting merchant:", err);
+      else console.log("✓ Inserted merchant");
     }
   );
 
   // Insert 5 users
   const users = [
-    ['hash001', 'user1@example.com', '+1234567890', 'enabled', 'enabled', 'enabled', null, 'New York'],
-    ['hash002', 'user2@example.com', '+1987654321', 'enabled', null, 'enabled', null, 'Los Angeles'],
-    ['hash003', 'user3@example.com', '+1555555555', null, 'enabled', null, null, 'Chicago'],
-    ['hash004', 'user4@example.com', '+1444444444', 'enabled', 'enabled', null, null, 'Boston'],
-    ['hash005', 'user5@example.com', '+1666666666', null, null, 'enabled', null, 'Miami']
+    [
+      "hash001",
+      "user1@example.com",
+      "+1234567890",
+      "enabled",
+      "enabled",
+      "enabled",
+      null,
+      "New York",
+    ],
+    [
+      "hash002",
+      "user2@example.com",
+      "+1987654321",
+      "enabled",
+      null,
+      "enabled",
+      null,
+      "Los Angeles",
+    ],
+    [
+      "hash003",
+      "user3@example.com",
+      "+1555555555",
+      null,
+      "enabled",
+      null,
+      null,
+      "Chicago",
+    ],
+    [
+      "hash004",
+      "user4@example.com",
+      "+1444444444",
+      "enabled",
+      "enabled",
+      null,
+      null,
+      "Boston",
+    ],
+    [
+      "hash005",
+      "user5@example.com",
+      "+1666666666",
+      null,
+      null,
+      "enabled",
+      null,
+      "Miami",
+    ],
+    [
+      "0866a6eaea5cb085e4cf6ef19296bf19647552dd5f96f1e530db3ae61837efe7",
+      "renaudbernier@hotmail.fr",
+      "+33652458849",
+      null,
+      null,
+      "enabled",
+      null,
+      "Paris",
+    ],
   ];
 
   users.forEach((user, index) => {
-    db.run(`INSERT INTO Users (cchash, email, phone, otp, biometric, hardwareToken, authCode, signUpLocation)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, user, function(err) {
-      if (err) console.error(`Error inserting user ${index + 1}:`, err);
-      else console.log(`✓ Inserted user ${index + 1}`);
-    });
+    db.run(
+      `INSERT INTO Users (cchash, email, phone, otp, biometric, hardwareToken, authCode, signUpLocation)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      user,
+      function (err) {
+        if (err) console.error(`Error inserting user ${index + 1}:`, err);
+        else console.log(`✓ Inserted user ${index + 1}`);
+      }
+    );
   });
 
   // Insert 3000 MFA events across the last 12 months with realistic distribution
-  const locations = ['New York', 'Los Angeles', 'Chicago', 'Boston', 'Miami', 'Seattle', 'Austin', 'Denver'];
-  const userHashes = ['hash001', 'hash002', 'hash003', 'hash004', 'hash005'];
+  const locations = [
+    "New York",
+    "Los Angeles",
+    "Chicago",
+    "Boston",
+    "Miami",
+    "Seattle",
+    "Austin",
+    "Denver",
+  ];
+  const userHashes = ["hash001", "hash002", "hash003", "hash004", "hash005"];
   const totalTransactions = 3000;
 
   // Generate realistic status distribution with random spikes
@@ -130,17 +203,18 @@ db.serialize(() => {
   function getRealisticStatus(monthOffset) {
     // Base probabilities
     let successRate = 0.85;
-    let authRate = 0.10;
+    let authRate = 0.1;
     let failRate = 0.05;
 
     // Add random monthly variations (±5%)
-    const monthVariation = (Math.sin(monthOffset * 0.5) * 0.05);
+    const monthVariation = Math.sin(monthOffset * 0.5) * 0.05;
     successRate += monthVariation;
     authRate -= monthVariation * 0.5;
     failRate -= monthVariation * 0.5;
 
     // Random spikes - occasional bad days
-    if (Math.random() < 0.05) { // 5% chance of a spike
+    if (Math.random() < 0.05) {
+      // 5% chance of a spike
       const spikeType = Math.random();
       if (spikeType < 0.5) {
         // Auth spike
@@ -148,8 +222,8 @@ db.serialize(() => {
         successRate -= 0.15;
       } else {
         // Failure spike
-        failRate += 0.10;
-        successRate -= 0.10;
+        failRate += 0.1;
+        successRate -= 0.1;
       }
     }
 
@@ -173,14 +247,17 @@ db.serialize(() => {
     timestamp.setMinutes(timestamp.getMinutes() - minutesAgo);
     timestamp.setSeconds(timestamp.getSeconds() - secondsAgo);
 
-    return { timestamp: timestamp.toISOString().replace('T', ' ').substring(0, 19), daysAgo };
+    return {
+      timestamp: timestamp.toISOString().replace("T", " ").substring(0, 19),
+      daysAgo,
+    };
   }
 
   // Generate more transactions for recent months (realistic business growth)
   const transactionsByMonth = [];
   for (let month = 0; month < 12; month++) {
     // More recent months have more transactions
-    const baseCount = 200 + (month * 15); // Growth over time
+    const baseCount = 200 + month * 15; // Growth over time
     const variance = Math.floor(Math.random() * 100 - 50);
     transactionsByMonth.push(Math.max(150, baseCount + variance));
   }
@@ -195,15 +272,18 @@ db.serialize(() => {
     const monthOffset = Math.floor(daysAgo / 30);
     const status = getRealisticStatus(monthOffset);
 
-    db.run(`INSERT INTO MFAEvents (cchash, transactionAmount, location, merchantApiKey, status, timestamp)
+    db.run(
+      `INSERT INTO MFAEvents (cchash, transactionAmount, location, merchantApiKey, status, timestamp)
             VALUES (?, ?, ?, ?, ?, ?)`,
-      [cchash, amount, location, 'merchant_key_abc123', status, timestamp],
-      function(err) {
+      [cchash, amount, location, "merchant_key_abc123", status, timestamp],
+      function (err) {
         if (err) console.error(`Error inserting MFA event ${i + 1}:`, err);
         else {
           insertedCount++;
           if (insertedCount === totalTransactions) {
-            console.log(`✓ Inserted ${totalTransactions} MFA events across 12 months`);
+            console.log(
+              `✓ Inserted ${totalTransactions} MFA events across 12 months`
+            );
           }
         }
       }
@@ -213,25 +293,72 @@ db.serialize(() => {
   // Insert sample rules
   const rules = [
     // Highest priority: Decline if different location than signup location
-    { merchantApiKey: 'merchant_key_abc123', priority: 100, amount: null, location: 'HOME_LOCATION', timeStart: null, timeEnd: null, condition: 'NOT', successStatus: 0 },
+    {
+      merchantApiKey: "merchant_key_abc123",
+      priority: 100,
+      amount: null,
+      location: "HOME_LOCATION",
+      timeStart: null,
+      timeEnd: null,
+      condition: "NOT",
+      successStatus: 0,
+    },
 
     // High priority: Decline transactions over $10,000
-    { merchantApiKey: 'merchant_key_abc123', priority: 10, amount: 10000, location: null, timeStart: null, timeEnd: null, condition: 'GREATER', successStatus: 0 },
+    {
+      merchantApiKey: "merchant_key_abc123",
+      priority: 10,
+      amount: 10000,
+      location: null,
+      timeStart: null,
+      timeEnd: null,
+      condition: "GREATER",
+      successStatus: 0,
+    },
 
     // Medium priority: Require MFA for transactions between $1,000 - $10,000
-    { merchantApiKey: 'merchant_key_abc123', priority: 8, amount: 1000, location: null, timeStart: null, timeEnd: null, condition: 'GREATER', successStatus: 2 },
+    {
+      merchantApiKey: "merchant_key_abc123",
+      priority: 8,
+      amount: 1000,
+      location: null,
+      timeStart: null,
+      timeEnd: null,
+      condition: "GREATER",
+      successStatus: 2,
+    },
 
     // Low priority: Accept transactions under $1,000
-    { merchantApiKey: 'merchant_key_abc123', priority: 5, amount: 1000, location: null, timeStart: null, timeEnd: null, condition: 'LESS_THAN', successStatus: 1 }
+    {
+      merchantApiKey: "merchant_key_abc123",
+      priority: 5,
+      amount: 1000,
+      location: null,
+      timeStart: null,
+      timeEnd: null,
+      condition: "LESS_THAN",
+      successStatus: 1,
+    },
   ];
 
   rules.forEach((rule, index) => {
-    db.run(`INSERT INTO Rules (merchantApiKey, priority, amount, location, timeStart, timeEnd, condition, successStatus)
+    db.run(
+      `INSERT INTO Rules (merchantApiKey, priority, amount, location, timeStart, timeEnd, condition, successStatus)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [rule.merchantApiKey, rule.priority, rule.amount, rule.location, rule.timeStart, rule.timeEnd, rule.condition, rule.successStatus],
-      function(err) {
+      [
+        rule.merchantApiKey,
+        rule.priority,
+        rule.amount,
+        rule.location,
+        rule.timeStart,
+        rule.timeEnd,
+        rule.condition,
+        rule.successStatus,
+      ],
+      function (err) {
         if (err) console.error(`Error inserting rule ${index + 1}:`, err);
-        else if (index === rules.length - 1) console.log(`✓ Inserted ${rules.length} rules`);
+        else if (index === rules.length - 1)
+          console.log(`✓ Inserted ${rules.length} rules`);
       }
     );
   });
