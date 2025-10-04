@@ -285,6 +285,41 @@ app.post('/api/verifyMFA', async (req, res) => {
   }
 });
 
+// Endpoint 4: Merchant Login
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Get merchant by email
+    const merchant = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM Merchants WHERE email = ?', [email], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!merchant) {
+      return res.json({ status: STATUS.FAILURE, message: 'Invalid credentials' });
+    }
+
+    // Check password (in production, use bcrypt for hashed passwords)
+    if (merchant.password === password) {
+      res.json({
+        status: STATUS.SUCCESS,
+        message: 'Login successful',
+        merchantApiKey: merchant.merchantApiKey,
+        email: merchant.email
+      });
+    } else {
+      res.json({ status: STATUS.FAILURE, message: 'Invalid credentials' });
+    }
+
+  } catch (error) {
+    console.error('Error in login:', error);
+    res.status(500).json({ status: STATUS.FAILURE, message: 'Internal server error' });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
