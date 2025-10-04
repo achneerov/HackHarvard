@@ -10,16 +10,7 @@ const form = document.getElementById('payment-form');
 const statusPanel = document.getElementById('payment-status');
 const summaryContainer = document.getElementById('order-summary');
 const grandTotalEl = document.getElementById('grand-total');
-const modal = document.getElementById('mfa-modal');
-const modalClose = document.getElementById('mfa-close');
-const modalSelect = document.getElementById('mfa-method');
-const modalRequest = document.getElementById('mfa-request');
-const modalCode = document.getElementById('mfa-code');
-const modalSubmit = document.getElementById('mfa-submit');
-const modalStatus = document.getElementById('mfa-status');
-
 let submitInFlight = false;
-let mfaHandlers = null;
 
 const disableForm = (disabled) => {
   if (!form) return;
@@ -52,68 +43,21 @@ const PaymentUI = {
     submitInFlight = isProcessing;
   },
   showMfa({ methods, onRequestCode, onSubmitCode, onCancel }) {
-    if (!modal) return;
-    mfaHandlers = { onRequestCode, onSubmitCode, onCancel };
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    modalStatus?.classList.add('hidden');
-    modalStatus.textContent = '';
-    modalCode.value = '';
-    modalSelect.innerHTML = '';
-    methods.forEach((method) => {
-      const option = document.createElement('option');
-      option.value = method.id;
-      option.textContent = method.label;
-      modalSelect.appendChild(option);
-    });
+    if (window.AuthPayModal?.open) {
+      window.AuthPayModal.open({ methods, onRequestCode, onSubmitCode, onCancel });
+    } else {
+      console.warn('AuthPay modal is not available.');
+    }
   },
   hideMfa() {
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    mfaHandlers = null;
+    window.AuthPayModal?.close();
   },
   setMfaStatus(type, message) {
-    if (!modalStatus) return;
-    modalStatus.classList.remove('hidden');
-    modalStatus.textContent = message;
-    modalStatus.className = 'hidden rounded-2xl border border-white/10 bg-black/40 p-4 text-xs text-champagne/70';
-    modalStatus.classList.remove('hidden');
-    if (type === 'success') {
-      modalStatus.classList.add('border-success/60', 'text-success');
-    } else if (type === 'failure') {
-      modalStatus.classList.add('border-failure/60', 'text-failure');
-    } else {
-      modalStatus.classList.add('text-champagne/80');
-    }
+    window.AuthPayModal?.setStatus(type, message);
   },
 };
 
 window.PaymentUI = PaymentUI;
-
-modalRequest?.addEventListener('click', async () => {
-  if (!mfaHandlers?.onRequestCode) return;
-  PaymentUI.setMfaStatus('info', 'Requesting verification code...');
-  const method = modalSelect.value;
-  await mfaHandlers.onRequestCode(method);
-});
-
-modalSubmit?.addEventListener('click', async () => {
-  if (!mfaHandlers?.onSubmitCode) return;
-  const code = modalCode.value.trim();
-  if (code.length !== 6) {
-    PaymentUI.setMfaStatus('failure', 'Please enter the 6-digit code.');
-    return;
-  }
-  await mfaHandlers.onSubmitCode(code);
-});
-
-modalClose?.addEventListener('click', () => {
-  if (mfaHandlers?.onCancel) {
-    mfaHandlers.onCancel();
-  }
-  PaymentUI.hideMfa();
-});
 
 const renderSummary = () => {
   if (!summaryContainer || !grandTotalEl) return;
