@@ -567,6 +567,128 @@ app.get('/api/dashboard/stats', async (req, res) => {
       );
     });
 
+    // Get detailed risk metrics for each customer
+    const riskMetrics = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT
+          u.email as name,
+          e.cchash,
+          SUM(CASE WHEN e.status = 1 THEN 1 ELSE 0 END) as success,
+          SUM(CASE WHEN e.status = 0 THEN 1 ELSE 0 END) as failed,
+          SUM(CASE WHEN e.status = 2 THEN 1 ELSE 0 END) as authRequired,
+          COUNT(*) as totalAttempts,
+          COUNT(DISTINCT e.location) as countryCount,
+          GROUP_CONCAT(DISTINCT e.location) as countries
+         FROM MFAEvents e
+         JOIN Users u ON e.cchash = u.cchash
+         WHERE e.merchantApiKey = ? ${timeFilter}
+         GROUP BY u.email, e.cchash`,
+        [merchantApiKey],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          // Calculate additional metrics for each user
+          Promise.all(rows.map(async (row) => {
+            // Get all events for this user sorted by timestamp
+            const events = await new Promise((res, rej) => {
+              db.all(
+                `SELECT status, timestamp, location FROM MFAEvents
+                 WHERE cchash = ? AND merchantApiKey = ? ${timeFilter}
+                 ORDER BY timestamp DESC`,
+                [row.cchash, merchantApiKey],
+                (err, evts) => {
+                  if (err) rej(err);
+                  else res(evts);
+                }
+              );
+            });
+
+            // Calculate consecutive stats
+            let maxConsecutiveFails = 0;
+            let maxConsecutiveSuccesses = 0;
+            let currentFails = 0;
+            let currentSuccesses = 0;
+
+            // Calculate time between auth required and failures
+            const authTimestamps = [];
+            const failTimestamps = [];
+
+            events.forEach(evt => {
+              if (evt.status === STATUS.FAILURE) {
+                currentFails++;
+                currentSuccesses = 0;
+                maxConsecutiveFails = Math.max(maxConsecutiveFails, currentFails);
+                failTimestamps.push(new Date(evt.timestamp));
+              } else if (evt.status === STATUS.SUCCESS) {
+                currentSuccesses++;
+                currentFails = 0;
+                maxConsecutiveSuccesses = Math.max(maxConsecutiveSuccesses, currentSuccesses);
+              } else if (evt.status === STATUS.AUTH_REQUIRED) {
+                currentFails = 0;
+                currentSuccesses = 0;
+                authTimestamps.push(new Date(evt.timestamp));
+              } else {
+                currentFails = 0;
+                currentSuccesses = 0;
+              }
+            });
+
+            // Calculate average time between events
+            const calcAvgTimeBetween = (timestamps) => {
+              if (timestamps.length < 2) return 'N/A';
+              let totalMinutes = 0;
+              for (let i = 0; i < timestamps.length - 1; i++) {
+                totalMinutes += (timestamps[i] - timestamps[i + 1]) / (1000 * 60);
+              }
+              const avgMinutes = totalMinutes / (timestamps.length - 1);
+              if (avgMinutes < 60) return `${avgMinutes.toFixed(0)}m`;
+              if (avgMinutes < 1440) return `${(avgMinutes / 60).toFixed(1)}h`;
+              return `${(avgMinutes / 1440).toFixed(1)}d`;
+            };
+
+            const avgTimeBetweenAuths = calcAvgTimeBetween(authTimestamps);
+            const avgTimeBetweenFails = calcAvgTimeBetween(failTimestamps);
+
+            // Get recent timestamps (top 3)
+            const recentTimestamps = events.slice(0, 3).map(evt => {
+              const date = new Date(evt.timestamp);
+              return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+            });
+
+            // Calculate risk score (0-100)
+            const failureRate = row.totalAttempts > 0 ? (row.failed / row.totalAttempts) : 0;
+            const authRate = row.totalAttempts > 0 ? (row.authRequired / row.totalAttempts) : 0;
+            const riskScore = Math.round(
+              (failureRate * 50) +
+              (authRate * 30) +
+              (maxConsecutiveFails * 5) +
+              (row.countryCount > 3 ? 15 : 0)
+            );
+
+            return {
+              ...row,
+              maxConsecutiveFails,
+              maxConsecutiveSuccesses,
+              avgTimeBetweenAuths,
+              avgTimeBetweenFails,
+              recentTimestamps,
+              riskScore
+            };
+          }))
+          .then(enrichedRows => resolve(enrichedRows))
+          .catch(err => reject(err));
+        }
+      );
+    });
+
     const successRate = totalTransactions > 0
       ? ((statusCounts.success / totalTransactions) * 100).toFixed(1)
       : 0;
@@ -579,7 +701,8 @@ app.get('/api/dashboard/stats', async (req, res) => {
         statusCounts,
         timeline,
         locationStats,
-        customerStats
+        customerStats,
+        riskMetrics
       }
     });
 

@@ -22,6 +22,8 @@ function Dashboard() {
         const data = await response.json();
 
         if (data.status === 1) {
+          console.log('Dashboard data received:', data.data);
+          console.log('Risk metrics:', data.data.riskMetrics);
           setDashboardData(data.data);
         } else {
           console.error('Failed to fetch dashboard data:', data.message);
@@ -219,14 +221,62 @@ function Dashboard() {
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-5">Transaction Status by Customer</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-5">Top 3 Riskiest Customers</h3>
           {dashboardData.customerStats && dashboardData.customerStats.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dashboardData.customerStats}>
+              <BarChart data={dashboardData.customerStats
+                .map(customer => {
+                  const riskData = dashboardData.riskMetrics?.find(r => r.name === customer.name);
+                  return { ...customer, ...riskData };
+                })
+                .sort((a, b) => (b.authRequired + b.failed) - (a.authRequired + a.failed))
+                .slice(0, 3)}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
-                <Tooltip />
+                <Tooltip content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    console.log('Tooltip data:', data);
+                    return (
+                      <div className="bg-white p-4 border-2 border-gray-200 rounded-lg shadow-lg max-w-sm z-50 relative" style={{ zIndex: 9999 }}>
+                        <p className="font-bold text-gray-900 mb-3 border-b pb-2">{data.name}</p>
+                        <div className="space-y-2 text-sm">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="text-green-700">✓ Successful:</div>
+                            <div className="font-semibold">{data.success}</div>
+                            <div className="text-orange-700">⚠ Auth Required:</div>
+                            <div className="font-semibold">{data.authRequired}</div>
+                            <div className="text-red-700">✗ Failed:</div>
+                            <div className="font-semibold">{data.failed}</div>
+                          </div>
+                          <hr className="my-2" />
+                          <div className="space-y-1">
+                            <div><span className="font-medium">Total Attempts:</span> {data.totalAttempts || 'N/A'}</div>
+                            <div><span className="font-medium">Countries ({data.countryCount || 0}):</span> {data.countries || 'N/A'}</div>
+                            <div><span className="font-medium">Avg Time Between Auths:</span> {data.avgTimeBetweenAuths || 'N/A'}</div>
+                            <div><span className="font-medium">Avg Time Between Fails:</span> {data.avgTimeBetweenFails || 'N/A'}</div>
+                            <div><span className="font-medium">Max Consecutive Fails:</span> {data.maxConsecutiveFails !== undefined ? data.maxConsecutiveFails : 'N/A'}</div>
+                            <div><span className="font-medium">Max Consecutive Success:</span> {data.maxConsecutiveSuccesses !== undefined ? data.maxConsecutiveSuccesses : 'N/A'}</div>
+                            <div className="pt-2 border-t mt-2">
+                              <div className="font-medium mb-1">Top 3 Recent Timestamps:</div>
+                              <div className="text-xs text-gray-600 space-y-0.5">
+                                {data.recentTimestamps && data.recentTimestamps.length > 0 ? (
+                                  data.recentTimestamps.map((ts, idx) => (
+                                    <div key={idx}>• {ts}</div>
+                                  ))
+                                ) : (
+                                  <div>No timestamps available</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }} wrapperStyle={{ zIndex: 9999 }} />
                 <Legend />
                 <Bar dataKey="success" fill="#48bb78" name="Successful" />
                 <Bar dataKey="authRequired" fill="#ed8936" name="Auth Required" />
