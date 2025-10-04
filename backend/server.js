@@ -9,6 +9,12 @@ require("dotenv").config({ path: path.join(__dirname, "../.env") });
 const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
+const twilio = require('twilio');
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -562,7 +568,17 @@ app.post("/api/requestCode", async (req, res) => {
 
         case AUTH_METHODS.phone:
           console.log(`[SMS] Sending code to ${user.phone}: ${code}`);
-          // TODO: Integrate with SMS service (Twilio, AWS SNS, etc.)
+          try {
+            await twilioClient.messages.create({
+              body: `Your Veritas verification code is: ${code}`,
+              from: process.env.TWILIO_PHONE_NUMBER,
+              to: user.phone
+            });
+            console.log(`[SMS] Successfully sent code to ${user.phone}`);
+          } catch (smsError) {
+            console.error(`[SMS] Failed to send SMS:`, smsError);
+            // Don't fail the request if SMS fails, code is still stored
+          }
           break;
 
         case AUTH_METHODS.otp:
@@ -632,7 +648,7 @@ app.post("/api/requestCode", async (req, res) => {
       `[AUTH CODE][SIGNUP] Pending user: ${ccHash.substring(0, 20)}..., Method: ${authMode}, Code: ${code}`
     );
 
-    // Send code via email for new sign-ups
+    // Send code via email or phone for new sign-ups
     if (authMode === AUTH_METHODS.email && email) {
       console.log(`[EMAIL][SIGNUP] Sending code to ${email}: ${code}`);
       try {
@@ -656,6 +672,19 @@ app.post("/api/requestCode", async (req, res) => {
       } catch (emailError) {
         console.error(`[EMAIL][SIGNUP] Failed to send email:`, emailError);
         // Don't fail the request if email fails, code is still stored
+      }
+    } else if (authMode === AUTH_METHODS.phone && phone) {
+      console.log(`[SMS][SIGNUP] Sending code to ${phone}: ${code}`);
+      try {
+        await twilioClient.messages.create({
+          body: `Welcome to Veritas! Your verification code is: ${code}`,
+          from: process.env.TWILIO_PHONE_NUMBER,
+          to: phone
+        });
+        console.log(`[SMS][SIGNUP] Successfully sent code to ${phone}`);
+      } catch (smsError) {
+        console.error(`[SMS][SIGNUP] Failed to send SMS:`, smsError);
+        // Don't fail the request if SMS fails, code is still stored
       }
     }
 
