@@ -34,7 +34,14 @@ function RulesManagement() {
       const data = await response.json();
 
       if (data.status === 1) {
-        setRules(data.data);
+        // Sort by priority and renumber sequentially
+        const sortedRules = data.data
+          .sort((a, b) => a.priority - b.priority)
+          .map((rule, index) => ({
+            ...rule,
+            displayPriority: index + 1
+          }));
+        setRules(sortedRules);
       }
     } catch (error) {
       console.error('Error fetching rules:', error);
@@ -175,10 +182,11 @@ function RulesManagement() {
     newRules.splice(draggedIndex, 1);
     newRules.splice(targetIndex, 0, draggedItem);
 
-    // Update priorities based on new order
+    // Update priorities based on new order AND renumber display priorities
     const updatedRules = newRules.map((rule, index) => ({
       ...rule,
-      priority: index + 1
+      priority: index + 1,
+      displayPriority: index + 1
     }));
 
     setRules(updatedRules);
@@ -404,7 +412,7 @@ function RulesManagement() {
                           >
                             <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z"></path>
                           </svg>
-                          <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">#{rule.priority}</span>
+                          <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">#{rule.displayPriority}</span>
                         </div>
                         <div>
                           <div className="mb-3">

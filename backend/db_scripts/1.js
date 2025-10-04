@@ -275,7 +275,7 @@ db.serialize(() => {
     // Highest priority: Decline if different location than signup location
     {
       merchantApiKey: "merchant_key_abc123",
-      priority: 100,
+      priority: 1,
       amount: null,
       location: "HOME_LOCATION",
       timeStart: null,
@@ -287,7 +287,7 @@ db.serialize(() => {
     // High priority: Require MFA for transactions over $50,000
     {
       merchantApiKey: "merchant_key_abc123",
-      priority: 10,
+      priority: 2,
       amount: 50000,
       location: null,
       timeStart: null,
@@ -299,7 +299,7 @@ db.serialize(() => {
     // Medium priority: Require MFA for transactions between $1,000 - $50,000
     {
       merchantApiKey: "merchant_key_abc123",
-      priority: 8,
+      priority: 3,
       amount: 1000,
       location: null,
       timeStart: null,
@@ -311,7 +311,7 @@ db.serialize(() => {
     // Low priority: Accept transactions under $1,000
     {
       merchantApiKey: "merchant_key_abc123",
-      priority: 5,
+      priority: 4,
       amount: 1000,
       location: null,
       timeStart: null,
