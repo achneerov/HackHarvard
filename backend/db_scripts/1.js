@@ -5,11 +5,23 @@ const dbPath = path.join(__dirname, '../database.db');
 const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
-  // Drop existing tables
+  // Drop ALL tables
+  db.run(`SELECT name FROM sqlite_master WHERE type='table'`, (err, tables) => {
+    if (!err && tables) {
+      tables.forEach(table => {
+        if (table.name !== 'sqlite_sequence') {
+          db.run(`DROP TABLE IF EXISTS ${table.name}`);
+        }
+      });
+    }
+  });
+
   db.run(`DROP TABLE IF EXISTS Rules`);
   db.run(`DROP TABLE IF EXISTS MFAEvents`);
   db.run(`DROP TABLE IF EXISTS MerchantApiKeys`);
+  db.run(`DROP TABLE IF EXISTS Merchants`);
   db.run(`DROP TABLE IF EXISTS Users`);
+  db.run(`DELETE FROM sqlite_sequence`);
 
   // Users table
   db.run(`
@@ -20,7 +32,19 @@ db.serialize(() => {
       otp TEXT,
       biometric TEXT,
       hardwareToken TEXT,
-      authCode TEXT
+      authCode TEXT,
+      signUpLocation TEXT
+    )
+  `);
+
+  // Merchants table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS Merchants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      merchantApiKey TEXT UNIQUE,
+      FOREIGN KEY (merchantApiKey) REFERENCES MerchantApiKeys(apiKey)
     )
   `);
 
