@@ -79,32 +79,36 @@ function evaluateRules(merchantApiKey, amount, location, timestamp) {
 
         // Evaluate each rule by priority
         for (const rule of rules) {
-          let conditionMet = false;
+          let conditionMet = true;
 
-          // Check amount condition
-          if (rule.amount !== null) {
+          // Check amount condition (only if amount is specified in rule)
+          if (rule.amount !== null && rule.amount !== undefined) {
             switch (rule.condition) {
               case 'EQUAL':
-                conditionMet = amount === rule.amount;
+                conditionMet = conditionMet && (amount === rule.amount);
                 break;
               case 'GREATER':
-                conditionMet = amount > rule.amount;
+                conditionMet = conditionMet && (amount > rule.amount);
                 break;
               case 'LESS_THAN':
-                conditionMet = amount < rule.amount;
+                conditionMet = conditionMet && (amount < rule.amount);
                 break;
               case 'NOT':
-                conditionMet = amount !== rule.amount;
+                conditionMet = conditionMet && (amount !== rule.amount);
                 break;
               case 'IS':
-                conditionMet = amount === rule.amount;
+                conditionMet = conditionMet && (amount === rule.amount);
                 break;
             }
           }
 
-          // Check location condition
-          if (rule.location && location) {
-            conditionMet = conditionMet && (location === rule.location);
+          // Check location condition (only if location is specified in rule)
+          if (rule.location) {
+            if (rule.condition === 'IS') {
+              conditionMet = conditionMet && (location === rule.location);
+            } else if (rule.condition === 'NOT') {
+              conditionMet = conditionMet && (location !== rule.location);
+            }
           }
 
           // Check time window
