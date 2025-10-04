@@ -981,7 +981,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
           try {
             const result = await activeBackend.requestCode({
               ccHash,
-              method: 'email',
+              method: 1,
               email,
               phone,
               merchantApiKey: merchantKey,
@@ -1132,9 +1132,10 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
               `Requesting code via ${method.toUpperCase()}...`
             );
             try {
+              const authModeValue = method === 'email' ? 1 : method === 'sms' || method === 'phone' ? 2 : method;
               const result = await activeBackend.requestCode({
                 ccHash: payload.ccHash,
-                method,
+                method: authModeValue,
               });
               if (result.status === STATUS.FAILURE) {
                 invoke(
