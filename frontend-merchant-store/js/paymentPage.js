@@ -78,21 +78,11 @@ const renderSummary = () => {
   grandTotalEl.textContent = formatCurrency(total);
 };
 
-const hashCardNumber = async (cardNumber) => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(cardNumber);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-};
-
 const buildPayload = async (formData) => {
   const cart = getCart();
   const customer = getCustomerDetails();
   const rawCardNumber = formData.get('cardNumber') || '';
   const cardNumber = rawCardNumber.replace(/\s+/g, '');
-  const ccHash = await hashCardNumber(cardNumber);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const normalizedTotal = Number(total.toFixed(2));
   const locationSuggestion = [customer?.city, customer?.country]
@@ -107,7 +97,7 @@ const buildPayload = async (formData) => {
   return {
     cart,
     customer,
-    ccHash,
+    cardNumber,
     cardMeta: {
       last4: cardNumber.slice(-4),
       brand: cardNumber.startsWith('4') ? 'Visa' : 'Luxury Card',
