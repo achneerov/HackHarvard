@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Square Checkout | Louis Buitton</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              squareBlack: "#000000",
+              squareGray: "#1A1A1A",
+              squareLightGray: "#F6F6F6",
+              squareBlue: "#006AFF",
+              success: "#3fb984",
+              failure: "#e36b6b",
+            },
+            fontFamily: {
+              sans: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="bg-white font-sans">
+    <!-- Square Header -->
+    <header class="bg-squareBlack border-b border-gray-800">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+        <div class="flex items-center gap-3">
+          <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none">
+            <rect width="24" height="24" rx="6" fill="white"/>
+            <path d="M16.7 7.3c.4.4.4 1 0 1.4l-5 5c-.4.4-1 .4-1.4 0l-3-3c-.4-.4-.4-1 0-1.4.4-.4 1-.4 1.4 0l2.3 2.3 4.3-4.3c.4-.4 1-.4 1.4 0z" fill="#000000"/>
+          </svg>
+          <span class="text-2xl font-bold text-white tracking-tight">Square</span>
+        </div>
+        <a href="cart.html" class="text-sm text-gray-400 hover:text-white transition">
+          ← Back to cart
+        </a>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-6 py-12">
+      <!-- Hero Section -->
+      <div class="mb-12 text-center">
+        <div class="inline-flex items-center gap-3 bg-squareBlack text-white px-6 py-3 rounded-full mb-4">
+          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+          </svg>
+          <span class="text-sm font-semibold">Secure Checkout</span>
+        </div>
+        <h1 class="text-4xl font-bold text-squareBlack mb-3">Complete Your Purchase</h1>
+        <p class="text-gray-600 max-w-2xl mx-auto">Enter your payment details below. All transactions are secure and encrypted.</p>
+      </div>
+
+      <div class="grid gap-10 lg:grid-cols-[1.5fr,1fr]">
+        <!-- Payment Form Section -->
+        <section>
+          <div class="bg-squareLightGray rounded-3xl p-8 border-2 border-gray-200">
+            <!-- Payment Method Header -->
+            <div class="flex items-center justify-between mb-8 pb-6 border-b-2 border-gray-300">
+              <div class="flex items-center gap-3">
+                <div class="bg-squareBlack rounded-2xl p-3">
+                  <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="text-xl font-bold text-squareBlack">Card Payment</h2>
+                  <p class="text-sm text-gray-600">Powered by Square</p>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <div class="bg-white rounded-lg p-2 border border-gray-300">
+                  <svg class="h-6 w-auto" fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15.854 11.329l-2.003 9.367h-2.424l2.006-9.367zM26.051 17.377l1.275-3.518 0.735 3.518zM28.754 20.696h2.242l-1.956-9.367h-2.069c-0.003-0-0.007-0-0.010-0-0.459 0-0.853 0.281-1.019 0.68l-0.003 0.007-3.635 8.68h2.544l0.506-1.4h3.109zM22.429 17.638c0.010-2.473-3.419-2.609-3.395-3.714 0.008-0.336 0.327-0.694 1.027-0.785 0.13-0.013 0.28-0.021 0.432-0.021 0.711 0 1.385 0.162 1.985 0.452l-0.027-0.012 0.425-1.987c-0.673-0.261-1.452-0.413-2.266-0.416h-0.001c-2.396 0-4.081 1.275-4.096 3.098-0.015 1.348 1.203 2.099 2.122 2.549 0.945 0.459 1.262 0.754 1.257 1.163-0.006 0.63-0.752 0.906-1.45 0.917-0.032 0.001-0.071 0.001-0.109 0.001-0.871 0-1.691-0.219-2.407-0.606l0.027 0.013-0.439 2.052c0.786 0.315 1.697 0.497 2.651 0.497 0.015 0 0.030-0 0.045-0h-0.002c2.546 0 4.211-1.257 4.22-3.204zM12.391 11.329l-3.926 9.367h-2.562l-1.932-7.477c-0.037-0.364-0.26-0.668-0.57-0.82l-0.006-0.003c-0.688-0.338-1.488-0.613-2.325-0.786l-0.066-0.011 0.058-0.271h4.124c0 0 0.001 0 0.001 0 0.562 0 1.028 0.411 1.115 0.948l0.001 0.006 1.021 5.421 2.522-6.376z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <form id="payment-form" data-veritas-payment-form class="space-y-6">
+              <div>
+                <label for="cardName" class="block text-sm font-bold text-squareBlack mb-3">Cardholder Name</label>
+                <input
+                  id="cardName"
+                  name="cardName"
+                  type="text"
+                  required
+                  class="w-full rounded-2xl border-2 border-gray-300 bg-white px-5 py-4 text-base font-medium focus:border-squareBlack focus:outline-none transition"
+                  placeholder="John Doe"
+                />
+              </div>
+
+              <div>
+                <label for="cardNumber" class="block text-sm font-bold text-squareBlack mb-3">Card Number</label>
+                <div class="relative">
+                  <input
+                    id="cardNumber"
+                    name="cardNumber"
+                    inputmode="numeric"
+                    pattern="[0-9]{16}"
+                    maxlength="16"
+                    required
+                    class="w-full rounded-2xl border-2 border-gray-300 bg-white px-5 py-4 pr-16 text-base font-mono tracking-wider focus:border-squareBlack focus:outline-none transition"
+                    placeholder="1234 5678 9012 3456"
+                  />
+                  <div class="absolute right-4 top-1/2 -translate-y-1/2">
+                    <svg class="h-8 w-auto" fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M15.854 11.329l-2.003 9.367h-2.424l2.006-9.367zM26.051 17.377l1.275-3.518 0.735 3.518zM28.754 20.696h2.242l-1.956-9.367h-2.069c-0.003-0-0.007-0-0.010-0-0.459 0-0.853 0.281-1.019 0.68l-0.003 0.007-3.635 8.68h2.544l0.506-1.4h3.109zM22.429 17.638c0.010-2.473-3.419-2.609-3.395-3.714 0.008-0.336 0.327-0.694 1.027-0.785 0.13-0.013 0.28-0.021 0.432-0.021 0.711 0 1.385 0.162 1.985 0.452l-0.027-0.012 0.425-1.987c-0.673-0.261-1.452-0.413-2.266-0.416h-0.001c-2.396 0-4.081 1.275-4.096 3.098-0.015 1.348 1.203 2.099 2.122 2.549 0.945 0.459 1.262 0.754 1.257 1.163-0.006 0.63-0.752 0.906-1.45 0.917-0.032 0.001-0.071 0.001-0.109 0.001-0.871 0-1.691-0.219-2.407-0.606l0.027 0.013-0.439 2.052c0.786 0.315 1.697 0.497 2.651 0.497 0.015 0 0.030-0 0.045-0h-0.002c2.546 0 4.211-1.257 4.22-3.204zM12.391 11.329l-3.926 9.367h-2.562l-1.932-7.477c-0.037-0.364-0.26-0.668-0.57-0.82l-0.006-0.003c-0.688-0.338-1.488-0.613-2.325-0.786l-0.066-0.011 0.058-0.271h4.124c0 0 0.001 0 0.001 0 0.562 0 1.028 0.411 1.115 0.948l0.001 0.006 1.021 5.421 2.522-6.376z"></path>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid gap-6 md:grid-cols-2">
+                <div>
+                  <label for="expiry" class="block text-sm font-bold text-squareBlack mb-3">Expiration</label>
+                  <input
+                    id="expiry"
+                    name="expiry"
+                    placeholder="MM / YY"
+                    pattern="(0[1-9]|1[0-2])/[0-9]{2}"
+                    required
+                    class="w-full rounded-2xl border-2 border-gray-300 bg-white px-5 py-4 text-base font-medium focus:border-squareBlack focus:outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label for="cvv" class="block text-sm font-bold text-squareBlack mb-3">CVV</label>
+                  <div class="relative">
+                    <input
+                      id="cvv"
+                      name="cvv"
+                      inputmode="numeric"
+                      maxlength="4"
+                      required
+                      class="w-full rounded-2xl border-2 border-gray-300 bg-white px-5 py-4 text-base font-medium focus:border-squareBlack focus:outline-none transition"
+                      placeholder="123"
+                    />
+                    <div class="absolute right-4 top-1/2 -translate-y-1/2">
+                      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Security Notice -->
+              <div class="bg-white border-2 border-squareBlack/10 rounded-2xl p-5 mt-8">
+                <div class="flex items-start gap-4">
+                  <div class="bg-squareBlack rounded-full p-2 flex-shrink-0">
+                    <svg class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="font-bold text-squareBlack text-sm mb-2">Your payment is secure</p>
+                    <p class="text-xs text-gray-600 leading-relaxed">
+                      Square uses bank-level encryption and fraud detection to protect your information. We never store your full card number.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                class="w-full bg-squareBlack hover:bg-squareGray text-white font-bold rounded-2xl px-8 py-5 text-lg transition-all shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 active:translate-y-0"
+              >
+                <span class="flex items-center justify-center gap-3">
+                  <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none">
+                    <rect width="24" height="24" rx="6" fill="white"/>
+                    <path d="M16.7 7.3c.4.4.4 1 0 1.4l-5 5c-.4.4-1 .4-1.4 0l-3-3c-.4-.4-.4-1 0-1.4.4-.4 1-.4 1.4 0l2.3 2.3 4.3-4.3c.4-.4 1-.4 1.4 0z" fill="#000000"/>
+                  </svg>
+                  Pay with Square
+                </span>
+              </button>
+            </form>
+
+            <div id="payment-status" class="mt-6 hidden rounded-2xl border-2 p-4 text-sm"></div>
+          </div>
+
+          <!-- Trust Badges -->
+          <div class="mt-8 flex items-center justify-center gap-8">
+            <div class="flex flex-col items-center gap-2">
+              <div class="bg-squareLightGray rounded-full p-3">
+                <svg class="h-6 w-6 text-squareBlack" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <span class="text-xs font-semibold text-gray-600">Bank-Level Security</span>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+              <div class="bg-squareLightGray rounded-full p-3">
+                <svg class="h-6 w-6 text-squareBlack" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                  <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <span class="text-xs font-semibold text-gray-600">PCI Compliant</span>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+              <div class="bg-squareLightGray rounded-full p-3">
+                <svg class="h-6 w-6 text-squareBlack" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <span class="text-xs font-semibold text-gray-600">Verified Secure</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Order Summary Sidebar -->
+        <aside class="space-y-6">
+          <div class="bg-squareBlack text-white rounded-3xl p-8 sticky top-6 shadow-2xl">
+            <h3 class="text-xl font-bold mb-6">Order Summary</h3>
+            <div id="order-summary" class="space-y-4 text-sm mb-8"></div>
+            <div class="border-t-2 border-white/20 pt-6">
+              <div class="flex items-center justify-between text-2xl font-bold">
+                <span>Total</span>
+                <span id="grand-total"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Square Info Card -->
+          <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl border-2 border-gray-200 p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="bg-squareBlack rounded-2xl p-2.5">
+                <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none">
+                  <rect width="24" height="24" rx="6" fill="white"/>
+                  <path d="M16.7 7.3c.4.4.4 1 0 1.4l-5 5c-.4.4-1 .4-1.4 0l-3-3c-.4-.4-.4-1 0-1.4.4-.4 1-.4 1.4 0l2.3 2.3 4.3-4.3c.4-.4 1-.4 1.4 0z" fill="#000000"/>
+                </svg>
+              </div>
+              <div>
+                <p class="font-bold text-squareBlack text-lg">Square</p>
+                <p class="text-xs text-gray-600">Trusted payment processing</p>
+              </div>
+            </div>
+            <div class="space-y-2 text-xs text-gray-600">
+              <div class="flex items-center gap-2">
+                <svg class="h-4 w-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                <span>Millions of businesses trust Square</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <svg class="h-4 w-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                <span>Advanced fraud protection</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <svg class="h-4 w-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                <span>24/7 customer support</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="border-t-2 border-gray-200 bg-squareLightGray mt-16">
+      <div class="mx-auto max-w-6xl px-6 py-8">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none">
+              <rect width="24" height="24" rx="6" fill="#000000"/>
+              <path d="M16.7 7.3c.4.4.4 1 0 1.4l-5 5c-.4.4-1 .4-1.4 0l-3-3c-.4-.4-.4-1 0-1.4.4-.4 1-.4 1.4 0l2.3 2.3 4.3-4.3c.4-.4 1-.4 1.4 0z" fill="white"/>
+            </svg>
+            <span class="font-semibold">Powered by Square</span>
+          </div>
+          <span class="text-xs text-gray-500">© 2024 Square, Inc. All rights reserved.</span>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      merchantApiKey = "merchant_key_abc123";
+    </script>
+    <script type="module" src="./veritas.js"></script>
+    <script type="module" src="./js/products.js"></script>
+    <script type="module" src="./js/storage.js"></script>
+    <script type="module" src="./js/paymentPage.js"></script>
+  </body>
+</html>

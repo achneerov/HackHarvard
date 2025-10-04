@@ -401,6 +401,9 @@ const ensureVeritasModal = () => {
         gap: 8px;
         margin-bottom: 18px;
       }
+      .veritas-mfa-field--code {
+        margin-top: 16px;
+      }
       .veritas-mfa-label {
         font-size: 11px;
         letter-spacing: 0.28em;
@@ -449,6 +452,11 @@ const ensureVeritasModal = () => {
         background: transparent;
         border: 1px solid #d1d5db;
         color: #1f2937;
+      }
+      .veritas-mfa-submit.is-ready {
+        background: linear-gradient(120deg, #10b981, #059669);
+        border-color: #10b981;
+        color: #ffffff;
       }
       .veritas-mfa-button:hover:not(:disabled) {
         transform: translateY(-1px);
@@ -737,6 +745,14 @@ const ensureVeritasModal = () => {
       return;
     }
     runSafely(submitButton, () => currentHandlers.onSubmitCode(code));
+  });
+
+  codeInput.addEventListener('input', () => {
+    if (codeInput.value.trim().length === 6) {
+      submitButton.classList.add('is-ready');
+    } else {
+      submitButton.classList.remove('is-ready');
+    }
   });
 
   codeInput.addEventListener('keydown', (event) => {
@@ -1299,6 +1315,277 @@ const enable = ({ processPayment, ui, backend } = {}) => {
   };
 };
 
+const computeCartTotal = (context) => {
+  if (!context || typeof context.getCart !== 'function') return 0;
+  const cart = context.getCart();
+  if (!Array.isArray(cart)) return 0;
+  return cart.reduce((sum, item) => {
+    const price = Number(item?.price ?? 0);
+    const quantity = Number(item?.quantity ?? 0);
+    return sum + price * quantity;
+  }, 0);
+};
+
+const resolveAutoPaymentContext = () => {
+  if (typeof window === 'undefined') return null;
+  const context = window.PaymentContext;
+  if (!context) return null;
+  const { elements = {} } = context;
+  const form =
+    elements.form ||
+    document.querySelector('[data-veritas-payment-form]') ||
+    document.getElementById('payment-form');
+  if (!form) return null;
+
+  return {
+    ...context,
+    elements: {
+      form,
+      statusPanel: elements.statusPanel || document.getElementById('payment-status'),
+      summaryContainer: elements.summaryContainer || document.getElementById('order-summary'),
+      grandTotalEl: elements.grandTotalEl || document.getElementById('grand-total'),
+    },
+  };
+};
+
+const formatTotalForDisplay = (context, totalValue) => {
+  const formatter = context?.formatCurrency;
+  if (typeof formatter === 'function') {
+    return formatter(totalValue);
+  }
+  const numericValue = Number.isFinite(totalValue) ? Number(totalValue) : 0;
+  return numericValue.toFixed(2);
+};
+
+const resolveDisplayedTotal = (context, totalValue) => {
+  const totalEl = context?.elements?.grandTotalEl;
+  if (totalEl?.textContent) {
+    return totalEl.textContent;
+  }
+  return formatTotalForDisplay(context, totalValue);
+};
+
+const buildAutoPaymentPayload = async (formEl, backendConfig = {}, context) => {
+  const formData = new FormData(formEl);
+  const cart = typeof context.getCart === 'function' ? context.getCart() : [];
+  const customer =
+    typeof context.getCustomerDetails === 'function' ? context.getCustomerDetails() : null;
+  const rawCardNumber = (formData.get('cardNumber') || '').toString();
+  const cardNumber = rawCardNumber.replace(/\s+/g, '');
+  const total = computeCartTotal(context);
+  const normalizedTotal = Number(total.toFixed(2));
+  const locationSuggestion = [customer?.city, customer?.country].filter(Boolean).join(', ');
+
+  const preferCustomerLocation = backendConfig.preferCustomerLocation ?? false;
+  const location = preferCustomerLocation
+    ? locationSuggestion
+    : backendConfig.defaultLocation ?? null;
+
+  let deviceData = null;
+  if (typeof context.getDeviceFingerprintData === 'function') {
+    try {
+      deviceData = await context.getDeviceFingerprintData();
+    } catch (error) {
+      console.error('Veritas: device fingerprint unavailable', error);
+    }
+  }
+
+  const payload = {
+    cart,
+    customer,
+    cardNumber,
+    cardMeta: {
+      last4: cardNumber.slice(-4),
+      brand: cardNumber.startsWith('4') ? 'Visa' : 'Luxury Card',
+      expiry: formData.get('expiry'),
+    },
+    totals: {
+      subtotal: normalizedTotal,
+      currency: 'USD',
+    },
+    amount: normalizedTotal,
+    location,
+    useCustomerLocation: preferCustomerLocation,
+    merchantApiKey: backendConfig.merchantApiKey,
+    emailAddress: customer?.email,
+  };
+
+  if (deviceData) {
+    payload.deviceFingerprint = deviceData.fingerprint;
+    payload.deviceInfo = deviceData.info;
+  }
+
+  return payload;
+};
+
+const handleAutoPaymentResponse = (response, PaymentUI, context) => {
+  if (!response) return;
+
+  if (response.status === STATUS.SUCCESS) {
+    const totalValue = computeCartTotal(context);
+    const order = {
+      reference: response.reference || `LB-${Date.now()}`,
+      total: resolveDisplayedTotal(context, totalValue),
+      timestamp: new Date().toISOString(),
+    };
+    if (typeof context.saveOrder === 'function') {
+      context.saveOrder(order);
+    }
+    if (typeof context.clearCart === 'function') {
+      context.clearCart();
+    }
+    window.location.href = 'confirmation.html';
+    return;
+  }
+
+  if (response.status === STATUS.FAILURE) {
+    if (PaymentUI) {
+      PaymentUI.showStatus(
+        'failure',
+        response.reason || 'Transaction cancelled, please contact merchant.'
+      );
+      PaymentUI.toggleProcessing?.(false);
+    }
+    return;
+  }
+
+  if (response.status === STATUS.AUTH_REQUIRED) {
+    PaymentUI?.toggleProcessing?.(false);
+  }
+};
+
+const processPaymentWithoutVeritas = (context, { onComplete } = {}) => {
+  const statusPanel = context?.elements?.statusPanel;
+  if (statusPanel) {
+    statusPanel.classList.remove('hidden');
+    statusPanel.textContent = 'Processing payment...';
+  }
+
+  setTimeout(() => {
+    const totalValue = computeCartTotal(context);
+    const order = {
+      reference: `LB-${Date.now()}`,
+      total: resolveDisplayedTotal(context, totalValue),
+      timestamp: new Date().toISOString(),
+    };
+    if (typeof context.saveOrder === 'function') {
+      context.saveOrder(order);
+    }
+    if (typeof context.clearCart === 'function') {
+      context.clearCart();
+    }
+    if (typeof onComplete === 'function') {
+      onComplete();
+    }
+    window.location.href = 'confirmation.html';
+  }, 500);
+};
+
+let autoPaymentBound = false;
+
+const setupAutoPaymentFormIntegration = () => {
+  if (autoPaymentBound) return;
+  const context = resolveAutoPaymentContext();
+  const form = context?.elements?.form;
+  if (!context || !form) return;
+  if (!form.hasAttribute('data-veritas-payment-form')) return;
+  if (form.dataset.veritasBound === 'true') return;
+
+  const statusPanel = context.elements.statusPanel;
+  let submitInFlight = false;
+  let cachedUI = null;
+
+  const getPaymentUI = () => {
+    if (cachedUI) return cachedUI;
+    cachedUI = createDefaultUI({
+      form,
+      statusElement: statusPanel,
+      hiddenClass: 'hidden',
+      baseStatusClass: 'mt-6 rounded-2xl border border-white/10 bg-black/40 p-6 text-sm',
+      statusClasses: {
+        info: 'text-champagne/80',
+        success: 'border-success/50 text-success',
+        failure: 'border-failure/50 text-failure',
+      },
+    });
+    return cachedUI;
+  };
+
+  const submitHandler = async (event) => {
+    event.preventDefault();
+    if (submitInFlight) return;
+
+    submitInFlight = true;
+
+    const trimmedKey =
+      typeof window.merchantApiKey === 'string' ? window.merchantApiKey.trim() : '';
+    const baseConfig = window.VeritasConfig?.backend || window.VeritasConfig || {};
+    const backendConfig = {
+      ...baseConfig,
+    };
+    if (backendConfig.merchantApiKey == null && trimmedKey) {
+      backendConfig.merchantApiKey = trimmedKey;
+    }
+
+    const hasMerchantKey = Boolean(
+      typeof backendConfig.merchantApiKey === 'string'
+        ? backendConfig.merchantApiKey.trim()
+        : backendConfig.merchantApiKey
+    );
+
+    if (!hasMerchantKey) {
+      processPaymentWithoutVeritas(context, {
+        onComplete: () => {
+          submitInFlight = false;
+        },
+      });
+      return;
+    }
+
+    const PaymentUI = getPaymentUI();
+    PaymentUI.clearStatus();
+    PaymentUI.showStatus('info', 'Authorizing payment...');
+
+    try {
+      const payload = await buildAutoPaymentPayload(form, backendConfig, context);
+      const backendClient = createBackendClient(backendConfig);
+      const integration = enable({
+        ui: PaymentUI,
+        backend: backendClient,
+      });
+
+      const response = await integration.processPayment(payload, PaymentUI);
+      handleAutoPaymentResponse(response, PaymentUI, context);
+
+      if (response?.status !== STATUS.SUCCESS) {
+        submitInFlight = false;
+      }
+    } catch (error) {
+      console.error('Payment error', error);
+      if (statusPanel) {
+        statusPanel.classList.remove('hidden');
+        statusPanel.textContent = 'An unexpected error occurred. Please try again.';
+      }
+      if (cachedUI?.toggleProcessing) {
+        cachedUI.toggleProcessing(false);
+      }
+      submitInFlight = false;
+    }
+  };
+
+  const assignSubmitHandler =
+    typeof context.setSubmitHandler === 'function' ? context.setSubmitHandler : null;
+
+  if (assignSubmitHandler) {
+    assignSubmitHandler(submitHandler);
+  } else {
+    form.addEventListener('submit', submitHandler);
+  }
+
+  autoPaymentBound = true;
+  form.dataset.veritasBound = 'true';
+};
+
 const Veritas = {
   ensureModal: ensureVeritasModal,
   createDefaultUI,
@@ -1336,6 +1623,24 @@ if (typeof window !== 'undefined') {
     } catch (error) {
       console.warn('Unable to configure Veritas defaults', error);
     }
+  }
+
+  const autoInitHandler = () => {
+    try {
+      setupAutoPaymentFormIntegration();
+    } catch (error) {
+      console.error('Veritas auto-init failed', error);
+    }
+  };
+
+  document.addEventListener('veritas:payment-context-ready', autoInitHandler);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoInitHandler, { once: false });
+  } else if (typeof queueMicrotask === 'function') {
+    queueMicrotask(autoInitHandler);
+  } else {
+    Promise.resolve().then(autoInitHandler);
   }
 }
 

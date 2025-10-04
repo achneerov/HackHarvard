@@ -1,17 +1,14 @@
 import { formatCurrency } from './products.js';
-import {
-  getCart,
-  getCustomerDetails,
-  clearCart,
-  saveOrder,
-} from './storage.js';
+import { getCart, getCustomerDetails, clearCart, saveOrder } from './storage.js';
 import { generateDeviceFingerprint } from './deviceFingerprint.js';
 
 const form = document.getElementById('payment-form');
 const statusPanel = document.getElementById('payment-status');
 const summaryContainer = document.getElementById('order-summary');
 const grandTotalEl = document.getElementById('grand-total');
-let submitInFlight = false;
+let submitHandler = null;
+let fallbackInFlight = false;
+let deviceFingerprintPromise = null;
 
 const disableForm = (disabled) => {
   if (!form) return;
@@ -48,164 +45,103 @@ const renderSummary = () => {
   grandTotalEl.textContent = formatCurrency(total);
 };
 
-const buildPayload = async (formData, backendConfig = {}) => {
+const computeCartTotal = () => {
   const cart = getCart();
-  const customer = getCustomerDetails();
-  const rawCardNumber = formData.get('cardNumber') || '';
-  const cardNumber = rawCardNumber.replace(/\s+/g, '');
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const normalizedTotal = Number(total.toFixed(2));
-  const locationSuggestion = [customer?.city, customer?.country]
-    .filter(Boolean)
-    .join(', ');
-
-  const preferCustomerLocation = backendConfig.preferCustomerLocation ?? false;
-  const location = preferCustomerLocation
-    ? locationSuggestion
-    : backendConfig.defaultLocation ?? null;
-
-  // Generate device fingerprint
-  const deviceData = await generateDeviceFingerprint();
-
-  return {
-    cart,
-    customer,
-    cardNumber,
-    cardMeta: {
-      last4: cardNumber.slice(-4),
-      brand: cardNumber.startsWith('4') ? 'Visa' : 'Luxury Card',
-      expiry: formData.get('expiry'),
-    },
-    totals: {
-      subtotal: normalizedTotal,
-      currency: 'USD',
-    },
-    amount: normalizedTotal,
-    location,
-    useCustomerLocation: preferCustomerLocation,
-    merchantApiKey: backendConfig.merchantApiKey,
-    emailAddress: customer?.email,
-    deviceFingerprint: deviceData.fingerprint,
-    deviceInfo: deviceData.info,
-  };
+  if (!Array.isArray(cart) || cart.length === 0) return 0;
+  return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 };
 
-const handleResponse = (response, PaymentUI) => {
-  if (!response) return;
-  if (response.status === 'SUCCESS') {
+const resolveDisplayTotal = (totalValue) => {
+  if (grandTotalEl?.textContent) {
+    return grandTotalEl.textContent;
+  }
+  return formatCurrency(totalValue);
+};
+
+const runFallbackPayment = () => {
+  if (fallbackInFlight) return;
+  fallbackInFlight = true;
+
+  if (statusPanel) {
+    statusPanel.classList.remove('hidden');
+    statusPanel.textContent = 'Processing payment...';
+  }
+
+  setTimeout(() => {
+    const totalValue = computeCartTotal();
     const order = {
-      reference: response.reference || `LB-${Date.now()}`,
-      total: grandTotalEl?.textContent,
+      reference: `LB-${Date.now()}`,
+      total: resolveDisplayTotal(totalValue),
       timestamp: new Date().toISOString(),
     };
     saveOrder(order);
     clearCart();
+    fallbackInFlight = false;
     window.location.href = 'confirmation.html';
-  } else if (response.status === 'FAILURE') {
-    if (PaymentUI) {
-      PaymentUI.showStatus(
-        'failure',
-        response.reason || 'Transaction cancelled, please contact merchant.'
-      );
-      PaymentUI.toggleProcessing(false);
-    }
-  } else if (response.status === 'AUTH_REQUIRED') {
-    if (PaymentUI) {
-      PaymentUI.toggleProcessing(false);
-    }
-  }
+  }, 500);
 };
 
-form?.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  if (submitInFlight) return;
+const setSubmitHandler = (handler) => {
+  submitHandler = typeof handler === 'function' ? handler : null;
+};
 
-  submitInFlight = true;
+const clearSubmitHandler = () => {
+  submitHandler = null;
+};
 
-  // Check if merchantApiKey is defined at runtime
-  const hasMerchantKey = typeof window.merchantApiKey !== 'undefined' &&
-                         window.merchantApiKey &&
-                         window.merchantApiKey.trim() !== '';
-
-  console.log('merchantApiKey check:', {
-    defined: typeof window.merchantApiKey !== 'undefined',
-    value: window.merchantApiKey,
-    hasMerchantKey
-  });
-
-  if (hasMerchantKey) {
-    // Dynamically import and use Veritas MFA flow
-    try {
-      const VeritasModule = await import('../veritas.js');
-      const Veritas = VeritasModule.default;
-
-      const backendConfig = {
-        ...(window.VeritasConfig?.backend || window.VeritasConfig || {}),
-      };
-
-      const veritasBackendClient = Veritas.createBackendClient(backendConfig);
-
-      const PaymentUI = Veritas.createDefaultUI({
-        form,
-        statusElement: statusPanel,
-        hiddenClass: 'hidden',
-        baseStatusClass: 'mt-6 rounded-2xl border border-white/10 bg-black/40 p-6 text-sm',
-        statusClasses: {
-          info: 'text-champagne/80',
-          success: 'border-success/50 text-success',
-          failure: 'border-failure/50 text-failure',
-        },
+const getDeviceFingerprintData = () => {
+  if (!deviceFingerprintPromise) {
+    deviceFingerprintPromise = generateDeviceFingerprint()
+      .catch((error) => {
+        console.error('Failed to generate device fingerprint', error);
+        deviceFingerprintPromise = null;
+        return null;
       });
-
-      const veritasIntegration = Veritas.enable({
-        ui: PaymentUI,
-        backend: veritasBackendClient,
-      });
-
-      PaymentUI.clearStatus();
-      PaymentUI.showStatus('info', 'Authorizing payment...');
-
-      const formData = new FormData(form);
-      const payload = await buildPayload(formData, backendConfig);
-
-      const response = await veritasIntegration.processPayment(payload, PaymentUI);
-      handleResponse(response, PaymentUI);
-
-      if (response?.status !== 'SUCCESS') {
-        submitInFlight = false;
-      }
-    } catch (error) {
-      console.error('Payment error', error);
-      if (statusPanel) {
-        statusPanel.classList.remove('hidden');
-        statusPanel.textContent = 'An unexpected error occurred. Please try again.';
-      }
-      submitInFlight = false;
-    }
-  } else {
-    // Skip MFA and go directly to completion page when no merchant key
-    if (statusPanel) {
-      statusPanel.classList.remove('hidden');
-      statusPanel.textContent = 'Processing payment...';
-    }
-
-    // Simulate a brief delay for better UX
-    setTimeout(() => {
-      const order = {
-        reference: `LB-${Date.now()}`,
-        total: grandTotalEl?.textContent,
-        timestamp: new Date().toISOString(),
-      };
-      saveOrder(order);
-      clearCart();
-      window.location.href = 'confirmation.html';
-    }, 500);
   }
-});
+  return deviceFingerprintPromise;
+};
+
+const handleFormSubmit = (event) => {
+  if (typeof submitHandler === 'function') {
+    submitHandler(event);
+    return;
+  }
+  event.preventDefault();
+  runFallbackPayment();
+};
+
+if (form) {
+  form.addEventListener('submit', handleFormSubmit);
+}
+
+const paymentContext = {
+  getCart,
+  getCustomerDetails,
+  clearCart,
+  saveOrder,
+  formatCurrency,
+  disableForm,
+  renderSummary,
+  setSubmitHandler,
+  clearSubmitHandler,
+  getDeviceFingerprintData,
+  elements: {
+    form,
+    statusPanel,
+    summaryContainer,
+    grandTotalEl,
+  },
+};
+
+window.PaymentContext = paymentContext;
+document.dispatchEvent(
+  new CustomEvent('veritas:payment-context-ready', { detail: paymentContext })
+);
 
 renderSummary();
 
-// Autofill shortcut with tilde (~) key
+getDeviceFingerprintData();
+
 document.addEventListener('keydown', (event) => {
   if (event.key === '~' && form) {
     event.preventDefault();
@@ -213,7 +149,7 @@ document.addEventListener('keydown', (event) => {
       cardName: 'Sophie Beaumont',
       cardNumber: '4242424242424242',
       expiry: '12/25',
-      cvv: '123'
+      cvv: '123',
     };
     Object.entries(testData).forEach(([key, value]) => {
       const field = form.elements.namedItem(key);
