@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import './Dashboard.css';
 
 const transactionData = [
   { date: '10/01', successful: 245, failed: 12, flagged: 8 },
@@ -50,63 +49,69 @@ function Dashboard() {
     navigate('/');
   };
 
+  const getRiskBadgeColor = (score) => {
+    if (score > 80) return 'bg-red-100 text-red-800';
+    if (score > 70) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-green-100 text-green-800';
+  };
+
   return (
-    <div className="dashboard-container">
-      <nav className="navbar">
-        <div className="nav-content">
-          <h2>Merchant Dashboard</h2>
-          <div className="nav-links">
-            <button onClick={() => navigate('/dashboard')} className="nav-link active">Dashboard</button>
-            <button onClick={() => navigate('/rules')} className="nav-link">Rules</button>
-            <button onClick={handleLogout} className="nav-link logout">Logout</button>
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-900">Merchant Dashboard</h2>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/dashboard')} className="px-4 py-2 rounded-md text-sm font-medium bg-purple-600 text-white">Dashboard</button>
+            <button onClick={() => navigate('/rules')} className="px-4 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">Rules</button>
+            <button onClick={handleLogout} className="px-4 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">Logout</button>
           </div>
         </div>
       </nav>
 
-      <div className="dashboard-content">
-        <div className="dashboard-header">
-          <h1>Security & Transaction Overview</h1>
-          <p>Monitor your merchant transactions and security insights</p>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Security & Transaction Overview</h1>
+          <p className="text-gray-600">Monitor your merchant transactions and security insights</p>
         </div>
 
-        <div className="metrics-grid">
-          <div className="metric-card">
-            <div className="metric-icon" style={{ background: '#bee3f8' }}>📊</div>
-            <div className="metric-info">
-              <h3>Total Transactions</h3>
-              <p className="metric-value">2,157</p>
-              <span className="metric-change positive">+12.5% from last week</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          <div className="bg-white rounded-xl p-6 flex gap-4 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl flex-shrink-0">📊</div>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-gray-600 mb-2">Total Transactions</h3>
+              <p className="text-3xl font-bold text-gray-900 mb-1">2,157</p>
+              <span className="text-sm text-green-600">+12.5% from last week</span>
             </div>
           </div>
-          <div className="metric-card">
-            <div className="metric-icon" style={{ background: '#c6f6d5' }}>✅</div>
-            <div className="metric-info">
-              <h3>Success Rate</h3>
-              <p className="metric-value">94.2%</p>
-              <span className="metric-change positive">+2.1% from last week</span>
+          <div className="bg-white rounded-xl p-6 flex gap-4 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+            <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-2xl flex-shrink-0">✅</div>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-gray-600 mb-2">Success Rate</h3>
+              <p className="text-3xl font-bold text-gray-900 mb-1">94.2%</p>
+              <span className="text-sm text-green-600">+2.1% from last week</span>
             </div>
           </div>
-          <div className="metric-card">
-            <div className="metric-icon" style={{ background: '#fef5e7' }}>⚠️</div>
-            <div className="metric-info">
-              <h3>Flagged Events</h3>
-              <p className="metric-value">67</p>
-              <span className="metric-change negative">+5 from yesterday</span>
+          <div className="bg-white rounded-xl p-6 flex gap-4 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+            <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center text-2xl flex-shrink-0">⚠️</div>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-gray-600 mb-2">Flagged Events</h3>
+              <p className="text-3xl font-bold text-gray-900 mb-1">67</p>
+              <span className="text-sm text-red-600">+5 from yesterday</span>
             </div>
           </div>
-          <div className="metric-card">
-            <div className="metric-icon" style={{ background: '#fed7d7' }}>🚨</div>
-            <div className="metric-info">
-              <h3>High Risk Users</h3>
-              <p className="metric-value">12</p>
-              <span className="metric-change">4 new this week</span>
+          <div className="bg-white rounded-xl p-6 flex gap-4 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+            <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-2xl flex-shrink-0">🚨</div>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-gray-600 mb-2">High Risk Users</h3>
+              <p className="text-3xl font-bold text-gray-900 mb-1">12</p>
+              <span className="text-sm text-gray-600">4 new this week</span>
             </div>
           </div>
         </div>
 
-        <div className="charts-grid">
-          <div className="chart-card wide">
-            <h3>Transaction Timeline</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
+          <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-5">Transaction Timeline</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={transactionData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -121,8 +126,8 @@ function Dashboard() {
             </ResponsiveContainer>
           </div>
 
-          <div className="chart-card">
-            <h3>Risk Distribution</h3>
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-5">Risk Distribution</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -145,9 +150,9 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="charts-grid">
-          <div className="chart-card wide">
-            <h3>MFA Success Rate by Customer</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
+          <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-5">MFA Success Rate by Customer</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={mfaSuccessData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -161,16 +166,16 @@ function Dashboard() {
             </ResponsiveContainer>
           </div>
 
-          <div className="chart-card">
-            <h3>Geographic Distribution</h3>
-            <div className="geo-list">
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-5">Geographic Distribution</h3>
+            <div className="flex flex-col gap-4">
               {geoData.map((location, idx) => (
-                <div key={idx} className="geo-item">
-                  <div className="geo-info">
-                    <span className="geo-country">{location.country}</span>
-                    <span className="geo-transactions">{location.transactions} transactions</span>
+                <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-purple-600">
+                  <div className="flex flex-col gap-1">
+                    <span className="font-semibold text-gray-900 text-sm">{location.country}</span>
+                    <span className="text-sm text-gray-600">{location.transactions} transactions</span>
                   </div>
-                  <span className={`geo-flagged ${location.flagged > 10 ? 'high' : ''}`}>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${location.flagged > 10 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
                     {location.flagged} flagged
                   </span>
                 </div>
@@ -179,10 +184,10 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="risk-section">
-          <h3>High-Risk Customers</h3>
-          <div className="risk-table">
-            <div className="risk-table-header">
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <h3 className="text-xl font-semibold text-gray-900 mb-5">High-Risk Customers</h3>
+          <div className="overflow-x-auto">
+            <div className="hidden md:grid grid-cols-5 gap-4 px-4 py-3 bg-gray-50 rounded-lg font-semibold text-sm text-gray-600 uppercase mb-1">
               <div>Customer</div>
               <div>Risk Score</div>
               <div>Flagged Events</div>
@@ -190,20 +195,20 @@ function Dashboard() {
               <div>Action</div>
             </div>
             {highRiskCustomers.map(customer => (
-              <div key={customer.id} className="risk-table-row">
-                <div className="customer-info">
-                  <strong>{customer.name}</strong>
-                  <span>{customer.email}</span>
+              <div key={customer.id} className="grid grid-cols-1 md:grid-cols-5 gap-4 px-4 py-4 bg-white hover:bg-gray-50 transition-colors items-center border-b last:border-b-0">
+                <div className="flex flex-col gap-1">
+                  <strong className="text-gray-900 text-sm">{customer.name}</strong>
+                  <span className="text-gray-600 text-sm">{customer.email}</span>
                 </div>
                 <div>
-                  <span className={`risk-badge ${customer.riskScore > 80 ? 'high' : customer.riskScore > 70 ? 'medium' : 'low'}`}>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold inline-block ${getRiskBadgeColor(customer.riskScore)}`}>
                     {customer.riskScore}
                   </span>
                 </div>
-                <div>{customer.flaggedEvents}</div>
-                <div className="last-seen">{customer.lastSeen}</div>
+                <div className="text-sm text-gray-900">{customer.flaggedEvents}</div>
+                <div className="text-sm text-gray-600">{customer.lastSeen}</div>
                 <div>
-                  <button className="action-btn">Review</button>
+                  <button className="px-4 py-1.5 bg-purple-600 text-white rounded-md text-sm font-semibold hover:bg-purple-700 transition-colors">Review</button>
                 </div>
               </div>
             ))}
