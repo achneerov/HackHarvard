@@ -41,23 +41,6 @@ db.run(`
   )
 `);
 
-// Create DeviceSessions table for device fingerprinting
-db.run(`
-  CREATE TABLE IF NOT EXISTS DeviceSessions (
-    sessionId INTEGER PRIMARY KEY AUTOINCREMENT,
-    cchash TEXT NOT NULL,
-    deviceFingerprint TEXT NOT NULL,
-    userAgent TEXT,
-    platform TEXT,
-    screenResolution TEXT,
-    timezone TEXT,
-    language TEXT,
-    trusted INTEGER DEFAULT 0,
-    lastSeen DATETIME DEFAULT CURRENT_TIMESTAMP,
-    firstSeen DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(cchash, deviceFingerprint)
-  )
-`);
 
 // Auth method mapping
 const AUTH_METHODS = {
@@ -105,51 +88,26 @@ function verifyCardNumber(cardNumber, storedHash) {
   return hash === verifyHash;
 }
 
-// Helper function to check if device is trusted
-async function checkDeviceTrust(cchash, deviceFingerprint, deviceInfo) {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT * FROM DeviceSessions WHERE cchash = ? AND deviceFingerprint = ?`,
-      [cchash, deviceFingerprint],
-      (err, row) => {
-        if (err) {
-          reject(err);
-          return;
-        }
+// Helper function to check if device matches user's stored device info
+async function checkDeviceTrust(user, deviceFingerprint, deviceInfo) {
+  // If no device fingerprint provided, treat as new device
+  if (!deviceFingerprint) {
+    return { trusted: false, isNewDevice: true };
+  }
 
-        if (row) {
-          // Device exists - update lastSeen
-          db.run(
-            `UPDATE DeviceSessions SET lastSeen = CURRENT_TIMESTAMP WHERE sessionId = ?`,
-            [row.sessionId],
-            (updateErr) => {
-              if (updateErr) console.error('Failed to update lastSeen:', updateErr);
-            }
-          );
-          resolve({ trusted: row.trusted === 1, isNewDevice: false });
-        } else {
-          // New device - save it as untrusted
-          db.run(
-            `INSERT INTO DeviceSessions (cchash, deviceFingerprint, userAgent, platform, screenResolution, timezone, language, trusted)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
-            [
-              cchash,
-              deviceFingerprint,
-              deviceInfo?.userAgent || null,
-              deviceInfo?.platform || null,
-              deviceInfo?.screenResolution || null,
-              deviceInfo?.timezone || null,
-              deviceInfo?.language || null
-            ],
-            (insertErr) => {
-              if (insertErr) console.error('Failed to insert device session:', insertErr);
-            }
-          );
-          resolve({ trusted: false, isNewDevice: true });
-        }
-      }
-    );
-  });
+  // Check if user has device info stored
+  if (!user.deviceFingerprint) {
+    // No device stored yet - this is a new device
+    return { trusted: false, isNewDevice: true };
+  }
+
+  // Check if fingerprint matches
+  if (user.deviceFingerprint === deviceFingerprint) {
+    return { trusted: true, isNewDevice: false };
+  }
+
+  // Different fingerprint - untrusted device
+  return { trusted: false, isNewDevice: true };
 }
 
 // Helper function to get enabled auth methods for a user
@@ -385,16 +343,12 @@ app.post("/api/processTransaction", async (req, res) => {
     // Check device trust if fingerprint provided
     let deviceTrustResult = { trusted: true, isNewDevice: false };
     if (deviceFingerprint) {
-      try {
-        deviceTrustResult = await checkDeviceTrust(ccHash, deviceFingerprint, deviceInfo);
-        console.log('[Veritas] Device trust check:', {
-          ccHash: ccHash.substring(0, 20) + '...',
-          trusted: deviceTrustResult.trusted,
-          isNewDevice: deviceTrustResult.isNewDevice
-        });
-      } catch (error) {
-        console.error('[Veritas] Device trust check failed:', error);
-      }
+      deviceTrustResult = await checkDeviceTrust(user, deviceFingerprint, deviceInfo);
+      console.log('[Veritas] Device trust check:', {
+        ccHash: ccHash.substring(0, 20) + '...',
+        trusted: deviceTrustResult.trusted,
+        isNewDevice: deviceTrustResult.isNewDevice
+      });
     }
 
     // Evaluate transaction rules
@@ -674,7 +628,7 @@ app.post("/api/requestCode", async (req, res) => {
 
 // Endpoint 3: Verify MFA
 app.post("/api/verifyMFA", async (req, res) => {
-  const { cardNumber, code, deviceFingerprint } = req.body;
+  const { cardNumber, code, deviceFingerprint, deviceInfo } = req.body;
 
   if (!cardNumber) {
     return res.json({
@@ -786,25 +740,33 @@ app.post("/api/verifyMFA", async (req, res) => {
         );
       });
 
-      // Trust the device after successful MFA
+      // Store/update device info after successful MFA
       if (deviceFingerprint) {
         try {
           await new Promise((resolve, reject) => {
             db.run(
-              `UPDATE DeviceSessions SET trusted = 1 WHERE cchash = ? AND deviceFingerprint = ?`,
-              [ccHash, deviceFingerprint],
+              `UPDATE Users SET deviceFingerprint = ?, userAgent = ?, platform = ?, screenResolution = ?, timezone = ?, language = ? WHERE cchash = ?`,
+              [
+                deviceFingerprint,
+                deviceInfo?.userAgent || null,
+                deviceInfo?.platform || null,
+                deviceInfo?.screenResolution || null,
+                deviceInfo?.timezone || null,
+                deviceInfo?.language || null,
+                ccHash
+              ],
               function (err) {
                 if (err) reject(err);
                 else resolve();
               }
             );
           });
-          console.log('[Veritas] Device trusted after successful MFA:', {
+          console.log('[Veritas] Device info saved after successful MFA:', {
             ccHash: ccHash.substring(0, 20) + '...',
             deviceFingerprint: deviceFingerprint.substring(0, 20) + '...'
           });
         } catch (error) {
-          console.error('[Veritas] Failed to trust device:', error);
+          console.error('[Veritas] Failed to save device info:', error);
         }
       }
 
@@ -930,8 +892,8 @@ app.post("/api/registerUser", async (req, res) => {
 
     await new Promise((resolve, reject) => {
       db.run(
-        `INSERT INTO Users (cchash, email, phone, otp, biometric, hardwareToken, authCode, signUpLocation)
-         VALUES (?, ?, ?, NULL, NULL, NULL, NULL, ?)
+        `INSERT INTO Users (cchash, email, phone, otp, biometric, hardwareToken, authCode, signUpLocation, deviceFingerprint, userAgent, platform, screenResolution, timezone, language)
+         VALUES (?, ?, ?, NULL, NULL, NULL, NULL, ?, NULL, NULL, NULL, NULL, NULL, NULL)
          ON CONFLICT(cchash) DO UPDATE SET
            email = excluded.email,
            phone = excluded.phone,
@@ -1559,12 +1521,17 @@ app.get("/api/dashboard/stats", async (req, res) => {
                 avgTimeBetweenFails,
                 recentTimestamps,
                 riskScore,
+                allEvents: events.map(evt => ({
+                  status: evt.status,
+                  timestamp: evt.timestamp,
+                  location: evt.location
+                }))
               };
             })
           )
             .then((enrichedRows) => {
-              // Sort by total failures descending
-              enrichedRows.sort((a, b) => b.failed - a.failed);
+              // Sort by sum of auth required + access denied (failed) descending
+              enrichedRows.sort((a, b) => (b.authRequired + b.failed) - (a.authRequired + a.failed));
               resolve(enrichedRows);
             })
             .catch((err) => reject(err));
@@ -1597,144 +1564,7 @@ app.get("/api/dashboard/stats", async (req, res) => {
   }
 });
 
-// Endpoint 11: Get Device Sessions for Merchant
-app.get("/api/devices", async (req, res) => {
-  const { merchantApiKey } = req.query;
-
-  try {
-    if (!merchantApiKey) {
-      return res
-        .status(400)
-        .json({ status: STATUS.FAILURE, message: "Merchant API key required" });
-    }
-
-    // Get all device sessions for users who have transacted with this merchant
-    const devices = await new Promise((resolve, reject) => {
-      db.all(
-        `SELECT
-          d.sessionId,
-          d.cchash,
-          d.deviceFingerprint,
-          d.userAgent,
-          d.platform,
-          d.screenResolution,
-          d.timezone,
-          d.language,
-          d.trusted,
-          d.lastSeen,
-          d.firstSeen,
-          u.email,
-          COUNT(DISTINCT e.eventId) as transactionCount,
-          MAX(e.timestamp) as lastTransaction
-         FROM DeviceSessions d
-         LEFT JOIN Users u ON d.cchash = u.cchash
-         LEFT JOIN MFAEvents e ON d.cchash = e.cchash AND e.merchantApiKey = ?
-         WHERE EXISTS (
-           SELECT 1 FROM MFAEvents
-           WHERE MFAEvents.cchash = d.cchash
-           AND MFAEvents.merchantApiKey = ?
-         )
-         GROUP BY d.sessionId
-         ORDER BY d.lastSeen DESC`,
-        [merchantApiKey, merchantApiKey],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
-        }
-      );
-    });
-
-    // Anonymize cchash for privacy
-    const sanitizedDevices = devices.map(device => ({
-      ...device,
-      cchash: device.cchash ? device.cchash.substring(0, 20) + '...' : null,
-      deviceFingerprint: device.deviceFingerprint ? device.deviceFingerprint.substring(0, 16) + '...' : null,
-      userId: generateRandomUserId(),
-    }));
-
-    res.json({ status: STATUS.SUCCESS, data: sanitizedDevices });
-  } catch (error) {
-    console.error("Error fetching devices:", error);
-    res
-      .status(500)
-      .json({ status: STATUS.FAILURE, message: "Internal server error" });
-  }
-});
-
-// Endpoint 12: Update Device Trust Status
-app.put("/api/devices/:sessionId/trust", async (req, res) => {
-  const { sessionId } = req.params;
-  const { merchantApiKey, trusted } = req.body;
-
-  try {
-    if (!merchantApiKey) {
-      return res
-        .status(400)
-        .json({ status: STATUS.FAILURE, message: "Merchant API key required" });
-    }
-
-    if (trusted === undefined || trusted === null) {
-      return res
-        .status(400)
-        .json({ status: STATUS.FAILURE, message: "Trusted status required" });
-    }
-
-    // Verify the device belongs to a user who transacted with this merchant
-    const deviceExists = await new Promise((resolve, reject) => {
-      db.get(
-        `SELECT d.* FROM DeviceSessions d
-         WHERE d.sessionId = ?
-         AND EXISTS (
-           SELECT 1 FROM MFAEvents
-           WHERE MFAEvents.cchash = d.cchash
-           AND MFAEvents.merchantApiKey = ?
-         )`,
-        [sessionId, merchantApiKey],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
-
-    if (!deviceExists) {
-      return res.json({
-        status: STATUS.FAILURE,
-        message: "Device not found or unauthorized",
-      });
-    }
-
-    // Update trust status
-    await new Promise((resolve, reject) => {
-      db.run(
-        `UPDATE DeviceSessions SET trusted = ? WHERE sessionId = ?`,
-        [trusted ? 1 : 0, sessionId],
-        function (err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
-
-    console.log(`[Veritas] Device trust updated:`, {
-      sessionId,
-      trusted,
-      merchantApiKey,
-    });
-
-    res.json({
-      status: STATUS.SUCCESS,
-      message: `Device ${trusted ? 'trusted' : 'untrusted'} successfully`,
-    });
-  } catch (error) {
-    console.error("Error updating device trust:", error);
-    res
-      .status(500)
-      .json({ status: STATUS.FAILURE, message: "Internal server error" });
-  }
-});
-
-// Endpoint 13: Delete Device Session
+// Endpoint 11: Delete Device (Clear device info from user)
 app.delete("/api/devices/:sessionId", async (req, res) => {
   const { sessionId } = req.params;
   const { merchantApiKey } = req.query;
@@ -1746,36 +1576,42 @@ app.delete("/api/devices/:sessionId", async (req, res) => {
         .json({ status: STATUS.FAILURE, message: "Merchant API key required" });
     }
 
-    // Verify the device belongs to a user who transacted with this merchant
-    const deviceExists = await new Promise((resolve, reject) => {
-      db.get(
-        `SELECT d.* FROM DeviceSessions d
-         WHERE d.sessionId = ?
-         AND EXISTS (
+    // Get all users who have transacted with this merchant
+    const users = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT u.cchash
+         FROM Users u
+         WHERE EXISTS (
            SELECT 1 FROM MFAEvents
-           WHERE MFAEvents.cchash = d.cchash
+           WHERE MFAEvents.cchash = u.cchash
            AND MFAEvents.merchantApiKey = ?
-         )`,
-        [sessionId, merchantApiKey],
-        (err, row) => {
+         )
+         ORDER BY (SELECT MAX(timestamp) FROM MFAEvents WHERE MFAEvents.cchash = u.cchash) DESC`,
+        [merchantApiKey],
+        (err, rows) => {
           if (err) reject(err);
-          else resolve(row);
+          else resolve(rows);
         }
       );
     });
 
-    if (!deviceExists) {
+    // Session ID is just an index, so get the user at that index
+    const userIndex = parseInt(sessionId) - 1;
+    if (userIndex < 0 || userIndex >= users.length) {
       return res.json({
         status: STATUS.FAILURE,
-        message: "Device not found or unauthorized",
+        message: "Device not found",
       });
     }
 
-    // Delete device session
+    const targetUser = users[userIndex];
+
+    // Clear device info for this user
     await new Promise((resolve, reject) => {
       db.run(
-        `DELETE FROM DeviceSessions WHERE sessionId = ?`,
-        [sessionId],
+        `UPDATE Users SET deviceFingerprint = NULL, userAgent = NULL, platform = NULL,
+         screenResolution = NULL, timezone = NULL, language = NULL WHERE cchash = ?`,
+        [targetUser.cchash],
         function (err) {
           if (err) reject(err);
           else resolve();
@@ -1783,17 +1619,80 @@ app.delete("/api/devices/:sessionId", async (req, res) => {
       );
     });
 
-    console.log(`[Veritas] Device session deleted:`, {
+    console.log(`[Veritas] Device info cleared for user:`, {
       sessionId,
       merchantApiKey,
     });
 
     res.json({
       status: STATUS.SUCCESS,
-      message: "Device session deleted successfully",
+      message: "Device information cleared successfully",
     });
   } catch (error) {
     console.error("Error deleting device:", error);
+    res
+      .status(500)
+      .json({ status: STATUS.FAILURE, message: "Internal server error" });
+  }
+});
+
+// Endpoint 12: Get Users with Device Info for Merchant
+app.get("/api/devices", async (req, res) => {
+  const { merchantApiKey } = req.query;
+
+  try {
+    if (!merchantApiKey) {
+      return res
+        .status(400)
+        .json({ status: STATUS.FAILURE, message: "Merchant API key required" });
+    }
+
+    // Get all users who have transacted with this merchant along with their device info
+    const devices = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT
+          u.cchash,
+          u.email,
+          u.deviceFingerprint,
+          u.userAgent,
+          u.platform,
+          u.screenResolution,
+          u.timezone,
+          u.language,
+          COUNT(DISTINCT e.id) as transactionCount,
+          MAX(e.timestamp) as lastTransaction
+         FROM Users u
+         LEFT JOIN MFAEvents e ON u.cchash = e.cchash AND e.merchantApiKey = ?
+         WHERE EXISTS (
+           SELECT 1 FROM MFAEvents
+           WHERE MFAEvents.cchash = u.cchash
+           AND MFAEvents.merchantApiKey = ?
+         )
+         GROUP BY u.cchash
+         ORDER BY lastTransaction DESC`,
+        [merchantApiKey, merchantApiKey],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+
+    // Anonymize cchash for privacy and add missing fields
+    const sanitizedDevices = devices.map((device, index) => ({
+      ...device,
+      sessionId: index + 1, // Generate a sequential ID for frontend compatibility
+      cchash: device.cchash ? device.cchash.substring(0, 20) + '...' : null,
+      deviceFingerprint: device.deviceFingerprint ? device.deviceFingerprint.substring(0, 16) + '...' : null,
+      userId: generateRandomUserId(),
+      trusted: device.deviceFingerprint ? 1 : 0, // Has device info = trusted
+      lastSeen: device.lastTransaction || null, // Use last transaction as last seen
+      firstSeen: null, // We don't track this anymore, could add it to Users table if needed
+    }));
+
+    res.json({ status: STATUS.SUCCESS, data: sanitizedDevices });
+  } catch (error) {
+    console.error("Error fetching devices:", error);
     res
       .status(500)
       .json({ status: STATUS.FAILURE, message: "Internal server error" });

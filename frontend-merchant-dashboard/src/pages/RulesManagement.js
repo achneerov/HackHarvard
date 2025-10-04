@@ -53,7 +53,7 @@ function RulesManagement() {
   const statusLabels = {
     0: 'Decline',
     1: 'Approve',
-    2: 'Flag for Review'
+    2: 'Auth Required'
   };
 
   const statusColors = {

@@ -168,7 +168,7 @@ function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
           <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900 mb-5">Transaction Timeline</h3>
-            {dashboardData.timeline.length > 0 ? (
+            {dashboardData.timeline && dashboardData.timeline.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={dashboardData.timeline}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -190,7 +190,7 @@ function Dashboard() {
 
           <div className="bg-white rounded-xl p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900 mb-5">Top Locations by Transactions</h3>
-            {dashboardData.locationStats.length > 0 ? (
+            {dashboardData.locationStats && dashboardData.locationStats.length > 0 ? (
               <div className="flex flex-col gap-3">
                 {dashboardData.locationStats.map((location, idx) => (
                   <div key={idx} className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-200 hover:shadow-sm transition-all">
@@ -335,24 +335,6 @@ function Dashboard() {
                 </div>
               </div>
 
-              {/* Activity Metrics */}
-              <div className="mb-6 bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
-                <h4 className="text-sm font-semibold text-blue-900 uppercase tracking-wide mb-3">Activity Metrics</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Total Attempts:</span>
-                    <span className="font-bold text-gray-900">{selectedUser.totalAttempts || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Locations:</span>
-                    <span className="font-bold text-gray-900">{selectedUser.locationCount || 0}</span>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-700 bg-white rounded-lg p-3 mt-3">
-                  <span className="font-semibold">Regions: </span>{selectedUser.locations || 'No locations'}
-                </div>
-              </div>
-
               {/* Time Analysis & Consecutive Patterns */}
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-yellow-50 rounded-xl p-4 border-2 border-yellow-200">
@@ -384,21 +366,43 @@ function Dashboard() {
                 </div>
               </div>
 
-              {/* Recent Activity */}
+              {/* All Activity in Range */}
               <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 border-2 border-gray-300">
-                <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">Recent Activity</h4>
-                <div className="space-y-2">
-                  {selectedUser.recentTimestamps && selectedUser.recentTimestamps.length > 0 ? (
-                    selectedUser.recentTimestamps.map((ts, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-sm text-gray-700 bg-white rounded-lg px-3 py-2">
-                        <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                          <circle cx="10" cy="10" r="4" />
-                        </svg>
-                        <span>{ts}</span>
-                      </div>
-                    ))
+                <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">All Activity in Range</h4>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {selectedUser.allEvents && selectedUser.allEvents.length > 0 ? (
+                    selectedUser.allEvents.map((evt, idx) => {
+                      const statusLabels = { 0: 'Denied', 1: 'Approved', 2: 'Auth Required' };
+                      const statusColors = {
+                        0: 'bg-red-100 text-red-800',
+                        1: 'bg-green-100 text-green-800',
+                        2: 'bg-yellow-100 text-yellow-800'
+                      };
+                      const formattedDate = new Date(evt.timestamp).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                      return (
+                        <div key={idx} className="flex items-center justify-between gap-2 text-sm bg-white rounded-lg px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                              <circle cx="10" cy="10" r="4" />
+                            </svg>
+                            <span className="text-gray-700">{formattedDate}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-600 text-xs">{evt.location || 'Unknown'}</span>
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${statusColors[evt.status]}`}>
+                              {statusLabels[evt.status]}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
                   ) : (
-                    <div className="text-gray-500 text-center py-2">No recent activity</div>
+                    <div className="text-gray-500 text-center py-2">No activity in range</div>
                   )}
                 </div>
               </div>
@@ -406,36 +410,6 @@ function Dashboard() {
           </div>
         )}
 
-        <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-5">Failed Transaction Locations</h3>
-          {dashboardData.locationStats && dashboardData.locationStats.filter(loc => loc.failed > 0).length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {dashboardData.locationStats
-                .filter(location => location.failed > 0)
-                .sort((a, b) => b.failed - a.failed)
-                .map((location, idx) => (
-                  <div key={idx} className="p-4 bg-red-50 rounded-lg border border-red-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-gray-900">{location.location}</span>
-                      <span className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs font-bold">
-                        {location.failed}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {location.failed} failed transaction{location.failed !== 1 ? 's' : ''}
-                    </div>
-                  </div>
-                ))}
-            </div>
-          ) : (
-            <div className="h-24 flex items-center justify-center text-gray-500 bg-green-50 rounded-lg border border-green-200">
-              <div className="text-center">
-                <div className="text-2xl mb-2">✓</div>
-                <div className="text-sm font-medium text-green-700">No failed transactions from any location</div>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
       <footer className="bg-white border-t border-gray-200 mt-12">

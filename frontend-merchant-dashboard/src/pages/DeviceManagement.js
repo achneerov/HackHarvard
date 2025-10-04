@@ -181,96 +181,18 @@ function DeviceManagement() {
         {/* Title */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Device Management</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Monitor and manage customer devices to detect stolen credit cards
-          </p>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-8">
-          <div className="bg-white rounded-xl p-4 flex gap-3 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Total Devices</h3>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 flex gap-3 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Trusted</h3>
-              <p className="text-2xl font-bold text-gray-900">{stats.trusted}</p>
-              <span className="text-xs text-gray-600">{stats.total > 0 ? ((stats.trusted / stats.total) * 100).toFixed(1) : 0}% trusted</span>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 flex gap-3 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
-            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Untrusted</h3>
-              <p className="text-2xl font-bold text-gray-900">{stats.untrusted}</p>
-              <span className="text-xs text-gray-600">{stats.total > 0 ? ((stats.untrusted / stats.total) * 100).toFixed(1) : 0}% untrusted</span>
-            </div>
-          </div>
         </div>
 
         {/* Filters */}
         <div className="bg-white shadow rounded-lg p-4 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search by email, platform, or user ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-4 py-2 rounded-md text-sm font-medium ${
-                  filter === 'all'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilter('trusted')}
-                className={`px-4 py-2 rounded-md text-sm font-medium ${
-                  filter === 'trusted'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                Trusted
-              </button>
-              <button
-                onClick={() => setFilter('untrusted')}
-                className={`px-4 py-2 rounded-md text-sm font-medium ${
-                  filter === 'untrusted'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                Untrusted
-              </button>
-            </div>
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Search by email, platform, or user ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+            />
           </div>
         </div>
 
@@ -286,13 +208,7 @@ function DeviceManagement() {
                   Platform
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Transactions
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Seen
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  Browser ID (User Agent)
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -302,7 +218,7 @@ function DeviceManagement() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredDevices.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
                     No devices found
                   </td>
                 </tr>
@@ -311,14 +227,11 @@ function DeviceManagement() {
                   <tr key={device.sessionId} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="text-2xl mr-3">
+                        <div className="mr-3 flex-shrink-0">
                           {getDeviceIcon(device.platform)}
                         </div>
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {device.email || 'Unknown User'}
-                          </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm font-bold text-gray-900">
                             {device.userId}
                           </div>
                           <div className="text-xs text-gray-400 mt-1">
@@ -337,49 +250,24 @@ function DeviceManagement() {
                       <div className="text-xs text-gray-400">
                         {device.timezone}
                       </div>
+                      {device.language && (
+                        <div className="text-xs text-gray-400 mt-1">
+                          <span className={`px-1.5 py-0.5 rounded ${
+                            device.language.includes('ru') || device.language.includes('zh') || device.language.includes('ar')
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {device.language}
+                          </span>
+                        </div>
+                      )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {device.transactionCount || 0}
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 max-w-2xl truncate">
+                        {device.userAgent || 'Unknown'}
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {device.lastTransaction
-                          ? formatDate(device.lastTransaction)
-                          : 'No transactions'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {formatDate(device.lastSeen)}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        First: {formatDate(device.firstSeen)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          device.trusted === 1
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {device.trusted === 1 ? 'Trusted' : 'Untrusted'}
-                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() =>
-                          handleTrustToggle(device.sessionId, device.trusted === 1)
-                        }
-                        className={`mr-3 ${
-                          device.trusted === 1
-                            ? 'text-red-600 hover:text-red-900'
-                            : 'text-green-600 hover:text-green-900'
-                        }`}
-                      >
-                        {device.trusted === 1 ? 'Untrust' : 'Trust'}
-                      </button>
                       <button
                         onClick={() => handleDeleteDevice(device.sessionId)}
                         className="text-gray-600 hover:text-gray-900"
