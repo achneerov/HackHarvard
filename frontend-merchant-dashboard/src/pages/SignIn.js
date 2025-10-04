@@ -70,7 +70,7 @@ function SignIn() {
           <p className="text-gray-600">Sign in to your merchant portal</p>
         </div>
 
-        <div className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
 
           <div>
             <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -134,19 +134,19 @@ function SignIn() {
           </div>
 
           <div className="flex justify-end">
-            <button className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
+            <button type="button" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
               Forgot password?
             </button>
           </div>
 
           <button
-            onClick={handleSubmit}
+            type="submit"
             disabled={isLoading || !email || !password}
             className="w-full mt-2 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-base font-semibold transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
-        </div>
+        </form>
 
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-600">
