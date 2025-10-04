@@ -205,10 +205,11 @@ form?.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (submitInFlight) return;
   PaymentUI.clearStatus();
-  PaymentUI.toggleProcessing(true);
   PaymentUI.showStatus('info', 'Authorizing payment...');
 
   const formData = new FormData(form);
+
+  PaymentUI.toggleProcessing(true);
   const payload = await buildPayload(formData);
 
   try {
