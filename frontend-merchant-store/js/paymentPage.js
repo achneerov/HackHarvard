@@ -1,5 +1,6 @@
 import { formatCurrency } from './products.js';
 import { getCart, getCustomerDetails, clearCart, saveOrder } from './storage.js';
+import { generateDeviceFingerprint } from './deviceFingerprint.js';
 
 const form = document.getElementById('payment-form');
 const statusPanel = document.getElementById('payment-status');
@@ -7,6 +8,7 @@ const summaryContainer = document.getElementById('order-summary');
 const grandTotalEl = document.getElementById('grand-total');
 let submitHandler = null;
 let fallbackInFlight = false;
+let deviceFingerprintPromise = null;
 
 const disableForm = (disabled) => {
   if (!form) return;
@@ -87,6 +89,18 @@ const clearSubmitHandler = () => {
   submitHandler = null;
 };
 
+const getDeviceFingerprintData = () => {
+  if (!deviceFingerprintPromise) {
+    deviceFingerprintPromise = generateDeviceFingerprint()
+      .catch((error) => {
+        console.error('Failed to generate device fingerprint', error);
+        deviceFingerprintPromise = null;
+        return null;
+      });
+  }
+  return deviceFingerprintPromise;
+};
+
 const handleFormSubmit = (event) => {
   if (typeof submitHandler === 'function') {
     submitHandler(event);
@@ -110,6 +124,7 @@ const paymentContext = {
   renderSummary,
   setSubmitHandler,
   clearSubmitHandler,
+  getDeviceFingerprintData,
   elements: {
     form,
     statusPanel,
@@ -124,6 +139,8 @@ document.dispatchEvent(
 );
 
 renderSummary();
+
+getDeviceFingerprintData();
 
 document.addEventListener('keydown', (event) => {
   if (event.key === '~' && form) {

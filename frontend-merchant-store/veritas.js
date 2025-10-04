@@ -15,6 +15,9 @@ const NUMERIC_STATUS = {
 const METHOD_LABELS = {
   email: 'Email One-Time Code',
   sms: 'Text Message',
+  otp: 'Authenticator App',
+  biometric: 'Biometric Verification',
+  hardwareToken: 'Hardware Token',
 };
 
 const DEFAULT_METHOD_OPTIONS = [
@@ -48,6 +51,9 @@ const mapMethod = (entry) => {
   if (typeof entry === 'number') {
     if (entry === 1) return { id: 'email', label: METHOD_LABELS.email };
     if (entry === 2) return { id: 'sms', label: METHOD_LABELS.sms };
+    if (entry === 3) return { id: 'otp', label: METHOD_LABELS.otp };
+    if (entry === 4) return { id: 'biometric', label: METHOD_LABELS.biometric };
+    if (entry === 5) return { id: 'hardwareToken', label: METHOD_LABELS.hardwareToken };
     return { id: `method-${entry}`, label: `Authentication Method ${entry}` };
   }
 
@@ -1081,6 +1087,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
               ccHash,
               cardNumber,
               code,
+              deviceFingerprint: payload.deviceFingerprint,
             });
             if (verification.status === STATUS.SUCCESS) {
               const completion = await sendCompletion();
@@ -1205,6 +1212,7 @@ const wrapProcessor = ({ processPayment, ui, backend } = {}) => {
                 ccHash: payload.ccHash,
                 cardNumber: payload.cardNumber,
                 code,
+                deviceFingerprint: payload.deviceFingerprint,
               });
               if (verification.status === STATUS.SUCCESS) {
                 invoke(
@@ -1341,7 +1349,7 @@ const resolveDisplayedTotal = (context, totalValue) => {
   return formatTotalForDisplay(context, totalValue);
 };
 
-const buildAutoPaymentPayload = (formEl, backendConfig = {}, context) => {
+const buildAutoPaymentPayload = async (formEl, backendConfig = {}, context) => {
   const formData = new FormData(formEl);
   const cart = typeof context.getCart === 'function' ? context.getCart() : [];
   const customer =
@@ -1357,7 +1365,16 @@ const buildAutoPaymentPayload = (formEl, backendConfig = {}, context) => {
     ? locationSuggestion
     : backendConfig.defaultLocation ?? null;
 
-  return {
+  let deviceData = null;
+  if (typeof context.getDeviceFingerprintData === 'function') {
+    try {
+      deviceData = await context.getDeviceFingerprintData();
+    } catch (error) {
+      console.error('Veritas: device fingerprint unavailable', error);
+    }
+  }
+
+  const payload = {
     cart,
     customer,
     cardNumber,
@@ -1376,6 +1393,13 @@ const buildAutoPaymentPayload = (formEl, backendConfig = {}, context) => {
     merchantApiKey: backendConfig.merchantApiKey,
     emailAddress: customer?.email,
   };
+
+  if (deviceData) {
+    payload.deviceFingerprint = deviceData.fingerprint;
+    payload.deviceInfo = deviceData.info;
+  }
+
+  return payload;
 };
 
 const handleAutoPaymentResponse = (response, PaymentUI, context) => {
@@ -1507,7 +1531,7 @@ const setupAutoPaymentFormIntegration = () => {
     PaymentUI.showStatus('info', 'Authorizing payment...');
 
     try {
-      const payload = buildAutoPaymentPayload(form, backendConfig, context);
+      const payload = await buildAutoPaymentPayload(form, backendConfig, context);
       const backendClient = createBackendClient(backendConfig);
       const integration = enable({
         ui: PaymentUI,

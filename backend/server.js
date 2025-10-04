@@ -9,6 +9,12 @@ require("dotenv").config({ path: path.join(__dirname, "../.env") });
 const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
+const twilio = require('twilio');
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -38,6 +44,24 @@ db.run(`
     merchantApiKey TEXT,
     verified INTEGER DEFAULT 0,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Create DeviceSessions table for device fingerprinting
+db.run(`
+  CREATE TABLE IF NOT EXISTS DeviceSessions (
+    sessionId INTEGER PRIMARY KEY AUTOINCREMENT,
+    cchash TEXT NOT NULL,
+    deviceFingerprint TEXT NOT NULL,
+    userAgent TEXT,
+    platform TEXT,
+    screenResolution TEXT,
+    timezone TEXT,
+    language TEXT,
+    trusted INTEGER DEFAULT 0,
+    lastSeen DATETIME DEFAULT CURRENT_TIMESTAMP,
+    firstSeen DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(cchash, deviceFingerprint)
   )
 `);
 
@@ -85,6 +109,53 @@ function verifyCardNumber(cardNumber, storedHash) {
   const [salt, hash] = storedHash.split(':');
   const verifyHash = crypto.pbkdf2Sync(cardNumber, salt, 100000, 64, 'sha512').toString('hex');
   return hash === verifyHash;
+}
+
+// Helper function to check if device is trusted
+async function checkDeviceTrust(cchash, deviceFingerprint, deviceInfo) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT * FROM DeviceSessions WHERE cchash = ? AND deviceFingerprint = ?`,
+      [cchash, deviceFingerprint],
+      (err, row) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        if (row) {
+          // Device exists - update lastSeen
+          db.run(
+            `UPDATE DeviceSessions SET lastSeen = CURRENT_TIMESTAMP WHERE sessionId = ?`,
+            [row.sessionId],
+            (updateErr) => {
+              if (updateErr) console.error('Failed to update lastSeen:', updateErr);
+            }
+          );
+          resolve({ trusted: row.trusted === 1, isNewDevice: false });
+        } else {
+          // New device - save it as untrusted
+          db.run(
+            `INSERT INTO DeviceSessions (cchash, deviceFingerprint, userAgent, platform, screenResolution, timezone, language, trusted)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+            [
+              cchash,
+              deviceFingerprint,
+              deviceInfo?.userAgent || null,
+              deviceInfo?.platform || null,
+              deviceInfo?.screenResolution || null,
+              deviceInfo?.timezone || null,
+              deviceInfo?.language || null
+            ],
+            (insertErr) => {
+              if (insertErr) console.error('Failed to insert device session:', insertErr);
+            }
+          );
+          resolve({ trusted: false, isNewDevice: true });
+        }
+      }
+    );
+  });
 }
 
 // Helper function to get enabled auth methods for a user
@@ -235,7 +306,7 @@ function evaluateRules(
 
 // Endpoint 1: Process Transaction
 app.post("/api/processTransaction", async (req, res) => {
-  const { cardNumber, amount, location, merchantApiKey, emailAddress } = req.body;
+  const { cardNumber, amount, location, merchantApiKey, emailAddress, deviceFingerprint, deviceInfo } = req.body;
 
   if (!cardNumber) {
     return res.json({
@@ -317,6 +388,21 @@ app.post("/api/processTransaction", async (req, res) => {
     // Use the user's stored cchash for subsequent operations
     const ccHash = user.cchash;
 
+    // Check device trust if fingerprint provided
+    let deviceTrustResult = { trusted: true, isNewDevice: false };
+    if (deviceFingerprint) {
+      try {
+        deviceTrustResult = await checkDeviceTrust(ccHash, deviceFingerprint, deviceInfo);
+        console.log('[Veritas] Device trust check:', {
+          ccHash: ccHash.substring(0, 20) + '...',
+          trusted: deviceTrustResult.trusted,
+          isNewDevice: deviceTrustResult.isNewDevice
+        });
+      } catch (error) {
+        console.error('[Veritas] Device trust check failed:', error);
+      }
+    }
+
     // Evaluate transaction rules
     const ruleStatus = await evaluateRules(
       merchantApiKey,
@@ -327,6 +413,27 @@ app.post("/api/processTransaction", async (req, res) => {
     );
 
     await logMFAEvent(ccHash, amount, location, merchantApiKey, ruleStatus);
+
+    // Force AUTH_REQUIRED if this is a new/untrusted device
+    if (deviceTrustResult.isNewDevice || !deviceTrustResult.trusted) {
+      const authMethods = getEnabledAuthMethods(user);
+      console.log("[Veritas] processTransaction requires auth (new/untrusted device)", {
+        merchantApiKey,
+        ccHash: ccHash.substring(0, 20) + '...',
+        amount,
+        location,
+        isNewDevice: deviceTrustResult.isNewDevice,
+        authMethods,
+      });
+      return res.json({
+        status: STATUS.AUTH_REQUIRED,
+        message: deviceTrustResult.isNewDevice
+          ? "New device detected - verification required"
+          : "Untrusted device - verification required",
+        authMethods,
+        reason: deviceTrustResult.isNewDevice ? "new_device" : "untrusted_device",
+      });
+    }
 
     if (ruleStatus === STATUS.SUCCESS) {
       console.log("[Veritas] processTransaction approved", {
@@ -461,7 +568,17 @@ app.post("/api/requestCode", async (req, res) => {
 
         case AUTH_METHODS.phone:
           console.log(`[SMS] Sending code to ${user.phone}: ${code}`);
-          // TODO: Integrate with SMS service (Twilio, AWS SNS, etc.)
+          try {
+            await twilioClient.messages.create({
+              body: `Your Veritas verification code is: ${code}`,
+              from: process.env.TWILIO_PHONE_NUMBER,
+              to: user.phone
+            });
+            console.log(`[SMS] Successfully sent code to ${user.phone}`);
+          } catch (smsError) {
+            console.error(`[SMS] Failed to send SMS:`, smsError);
+            // Don't fail the request if SMS fails, code is still stored
+          }
           break;
 
         case AUTH_METHODS.otp:
@@ -531,7 +648,7 @@ app.post("/api/requestCode", async (req, res) => {
       `[AUTH CODE][SIGNUP] Pending user: ${ccHash.substring(0, 20)}..., Method: ${authMode}, Code: ${code}`
     );
 
-    // Send code via email for new sign-ups
+    // Send code via email or phone for new sign-ups
     if (authMode === AUTH_METHODS.email && email) {
       console.log(`[EMAIL][SIGNUP] Sending code to ${email}: ${code}`);
       try {
@@ -556,6 +673,19 @@ app.post("/api/requestCode", async (req, res) => {
         console.error(`[EMAIL][SIGNUP] Failed to send email:`, emailError);
         // Don't fail the request if email fails, code is still stored
       }
+    } else if (authMode === AUTH_METHODS.phone && phone) {
+      console.log(`[SMS][SIGNUP] Sending code to ${phone}: ${code}`);
+      try {
+        await twilioClient.messages.create({
+          body: `Welcome to Veritas! Your verification code is: ${code}`,
+          from: process.env.TWILIO_PHONE_NUMBER,
+          to: phone
+        });
+        console.log(`[SMS][SIGNUP] Successfully sent code to ${phone}`);
+      } catch (smsError) {
+        console.error(`[SMS][SIGNUP] Failed to send SMS:`, smsError);
+        // Don't fail the request if SMS fails, code is still stored
+      }
     }
 
     res.json({
@@ -573,7 +703,7 @@ app.post("/api/requestCode", async (req, res) => {
 
 // Endpoint 3: Verify MFA
 app.post("/api/verifyMFA", async (req, res) => {
-  const { cardNumber, code } = req.body;
+  const { cardNumber, code, deviceFingerprint } = req.body;
 
   if (!cardNumber) {
     return res.json({
@@ -684,6 +814,28 @@ app.post("/api/verifyMFA", async (req, res) => {
           }
         );
       });
+
+      // Trust the device after successful MFA
+      if (deviceFingerprint) {
+        try {
+          await new Promise((resolve, reject) => {
+            db.run(
+              `UPDATE DeviceSessions SET trusted = 1 WHERE cchash = ? AND deviceFingerprint = ?`,
+              [ccHash, deviceFingerprint],
+              function (err) {
+                if (err) reject(err);
+                else resolve();
+              }
+            );
+          });
+          console.log('[Veritas] Device trusted after successful MFA:', {
+            ccHash: ccHash.substring(0, 20) + '...',
+            deviceFingerprint: deviceFingerprint.substring(0, 20) + '...'
+          });
+        } catch (error) {
+          console.error('[Veritas] Failed to trust device:', error);
+        }
+      }
 
       res.json({
         status: STATUS.SUCCESS,
@@ -1468,6 +1620,209 @@ app.get("/api/dashboard/stats", async (req, res) => {
     });
   } catch (error) {
     console.error("Error in dashboard stats:", error);
+    res
+      .status(500)
+      .json({ status: STATUS.FAILURE, message: "Internal server error" });
+  }
+});
+
+// Endpoint 11: Get Device Sessions for Merchant
+app.get("/api/devices", async (req, res) => {
+  const { merchantApiKey } = req.query;
+
+  try {
+    if (!merchantApiKey) {
+      return res
+        .status(400)
+        .json({ status: STATUS.FAILURE, message: "Merchant API key required" });
+    }
+
+    // Get all device sessions for users who have transacted with this merchant
+    const devices = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT
+          d.sessionId,
+          d.cchash,
+          d.deviceFingerprint,
+          d.userAgent,
+          d.platform,
+          d.screenResolution,
+          d.timezone,
+          d.language,
+          d.trusted,
+          d.lastSeen,
+          d.firstSeen,
+          u.email,
+          COUNT(DISTINCT e.eventId) as transactionCount,
+          MAX(e.timestamp) as lastTransaction
+         FROM DeviceSessions d
+         LEFT JOIN Users u ON d.cchash = u.cchash
+         LEFT JOIN MFAEvents e ON d.cchash = e.cchash AND e.merchantApiKey = ?
+         WHERE EXISTS (
+           SELECT 1 FROM MFAEvents
+           WHERE MFAEvents.cchash = d.cchash
+           AND MFAEvents.merchantApiKey = ?
+         )
+         GROUP BY d.sessionId
+         ORDER BY d.lastSeen DESC`,
+        [merchantApiKey, merchantApiKey],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+
+    // Anonymize cchash for privacy
+    const sanitizedDevices = devices.map(device => ({
+      ...device,
+      cchash: device.cchash ? device.cchash.substring(0, 20) + '...' : null,
+      deviceFingerprint: device.deviceFingerprint ? device.deviceFingerprint.substring(0, 16) + '...' : null,
+      userId: generateRandomUserId(),
+    }));
+
+    res.json({ status: STATUS.SUCCESS, data: sanitizedDevices });
+  } catch (error) {
+    console.error("Error fetching devices:", error);
+    res
+      .status(500)
+      .json({ status: STATUS.FAILURE, message: "Internal server error" });
+  }
+});
+
+// Endpoint 12: Update Device Trust Status
+app.put("/api/devices/:sessionId/trust", async (req, res) => {
+  const { sessionId } = req.params;
+  const { merchantApiKey, trusted } = req.body;
+
+  try {
+    if (!merchantApiKey) {
+      return res
+        .status(400)
+        .json({ status: STATUS.FAILURE, message: "Merchant API key required" });
+    }
+
+    if (trusted === undefined || trusted === null) {
+      return res
+        .status(400)
+        .json({ status: STATUS.FAILURE, message: "Trusted status required" });
+    }
+
+    // Verify the device belongs to a user who transacted with this merchant
+    const deviceExists = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT d.* FROM DeviceSessions d
+         WHERE d.sessionId = ?
+         AND EXISTS (
+           SELECT 1 FROM MFAEvents
+           WHERE MFAEvents.cchash = d.cchash
+           AND MFAEvents.merchantApiKey = ?
+         )`,
+        [sessionId, merchantApiKey],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (!deviceExists) {
+      return res.json({
+        status: STATUS.FAILURE,
+        message: "Device not found or unauthorized",
+      });
+    }
+
+    // Update trust status
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE DeviceSessions SET trusted = ? WHERE sessionId = ?`,
+        [trusted ? 1 : 0, sessionId],
+        function (err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    console.log(`[Veritas] Device trust updated:`, {
+      sessionId,
+      trusted,
+      merchantApiKey,
+    });
+
+    res.json({
+      status: STATUS.SUCCESS,
+      message: `Device ${trusted ? 'trusted' : 'untrusted'} successfully`,
+    });
+  } catch (error) {
+    console.error("Error updating device trust:", error);
+    res
+      .status(500)
+      .json({ status: STATUS.FAILURE, message: "Internal server error" });
+  }
+});
+
+// Endpoint 13: Delete Device Session
+app.delete("/api/devices/:sessionId", async (req, res) => {
+  const { sessionId } = req.params;
+  const { merchantApiKey } = req.query;
+
+  try {
+    if (!merchantApiKey) {
+      return res
+        .status(400)
+        .json({ status: STATUS.FAILURE, message: "Merchant API key required" });
+    }
+
+    // Verify the device belongs to a user who transacted with this merchant
+    const deviceExists = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT d.* FROM DeviceSessions d
+         WHERE d.sessionId = ?
+         AND EXISTS (
+           SELECT 1 FROM MFAEvents
+           WHERE MFAEvents.cchash = d.cchash
+           AND MFAEvents.merchantApiKey = ?
+         )`,
+        [sessionId, merchantApiKey],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (!deviceExists) {
+      return res.json({
+        status: STATUS.FAILURE,
+        message: "Device not found or unauthorized",
+      });
+    }
+
+    // Delete device session
+    await new Promise((resolve, reject) => {
+      db.run(
+        `DELETE FROM DeviceSessions WHERE sessionId = ?`,
+        [sessionId],
+        function (err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    console.log(`[Veritas] Device session deleted:`, {
+      sessionId,
+      merchantApiKey,
+    });
+
+    res.json({
+      status: STATUS.SUCCESS,
+      message: "Device session deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting device:", error);
     res
       .status(500)
       .json({ status: STATUS.FAILURE, message: "Internal server error" });
