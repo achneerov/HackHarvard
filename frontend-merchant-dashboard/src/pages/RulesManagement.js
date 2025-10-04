@@ -7,6 +7,8 @@ function RulesManagement() {
   const [loading, setLoading] = useState(true);
   const [editingRule, setEditingRule] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [dragOverItem, setDragOverItem] = useState(null);
   const [formData, setFormData] = useState({
     ruleType: 'amount',
     condition: 'LESS_THAN',
@@ -139,6 +141,70 @@ function RulesManagement() {
     setFormData({ ruleType: 'amount', condition: 'LESS_THAN', amount: '', location: '', successStatus: 1 });
     setEditingRule(null);
     setShowForm(false);
+  };
+
+  const handleDragStart = (e, rule) => {
+    setDraggedItem(rule);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, rule) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedItem?.ruleId !== rule.ruleId) {
+      setDragOverItem(rule);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverItem(null);
+  };
+
+  const handleDrop = async (e, targetRule) => {
+    e.preventDefault();
+
+    if (!draggedItem || draggedItem.ruleId === targetRule.ruleId) {
+      setDraggedItem(null);
+      return;
+    }
+
+    const draggedIndex = rules.findIndex(r => r.ruleId === draggedItem.ruleId);
+    const targetIndex = rules.findIndex(r => r.ruleId === targetRule.ruleId);
+
+    const newRules = [...rules];
+    newRules.splice(draggedIndex, 1);
+    newRules.splice(targetIndex, 0, draggedItem);
+
+    // Update priorities based on new order
+    const updatedRules = newRules.map((rule, index) => ({
+      ...rule,
+      priority: index + 1
+    }));
+
+    setRules(updatedRules);
+    setDraggedItem(null);
+    setDragOverItem(null);
+
+    // Send priority updates to backend
+    const merchantApiKey = localStorage.getItem('merchantApiKey');
+    try {
+      await fetch('http://localhost:3001/api/rules/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          merchantApiKey,
+          priorities: updatedRules.map(r => ({ ruleId: r.ruleId, priority: r.priority }))
+        })
+      });
+    } catch (error) {
+      console.error('Error updating priorities:', error);
+      fetchRules(); // Revert on error
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverItem(null);
   };
 
   return (
@@ -314,11 +380,30 @@ function RulesManagement() {
                 return (
                   <div
                     key={rule.ruleId}
-                    className="bg-white rounded-2xl p-6 shadow-xl border border-gray-100 transition-all hover:shadow-2xl"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, rule)}
+                    onDragOver={(e) => handleDragOver(e, rule)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, rule)}
+                    onDragEnd={handleDragEnd}
+                    className={`bg-white rounded-2xl p-6 border-2 transition-all ${
+                      draggedItem?.ruleId === rule.ruleId
+                        ? 'opacity-40 border-gray-300'
+                        : dragOverItem?.ruleId === rule.ruleId
+                        ? 'border-blue-500 bg-blue-50 scale-105'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-4">
-                        <div className="flex flex-col items-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <svg
+                            className="w-5 h-5 text-gray-400 cursor-grab active:cursor-grabbing"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z"></path>
+                          </svg>
                           <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">#{rule.priority}</span>
                         </div>
                         <div>

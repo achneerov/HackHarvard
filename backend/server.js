@@ -968,6 +968,64 @@ app.delete("/api/rules/:id", async (req, res) => {
   }
 });
 
+// Endpoint 10: Reorder Rules (Bulk Priority Update)
+app.put("/api/rules/reorder", async (req, res) => {
+  const { merchantApiKey, priorities } = req.body;
+
+  try {
+    if (!merchantApiKey) {
+      return res
+        .status(400)
+        .json({ status: STATUS.FAILURE, message: "Merchant API key required" });
+    }
+
+    if (!priorities || !Array.isArray(priorities)) {
+      return res
+        .status(400)
+        .json({ status: STATUS.FAILURE, message: "Priorities array required" });
+    }
+
+    // Update each rule's priority in a transaction
+    await new Promise((resolve, reject) => {
+      db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+
+        let completed = 0;
+        let hasError = false;
+
+        priorities.forEach(({ ruleId, priority }) => {
+          db.run(
+            "UPDATE Rules SET priority = ? WHERE ruleId = ? AND merchantApiKey = ?",
+            [priority, ruleId, merchantApiKey],
+            (err) => {
+              if (err && !hasError) {
+                hasError = true;
+                db.run("ROLLBACK");
+                reject(err);
+              }
+
+              completed++;
+              if (completed === priorities.length && !hasError) {
+                db.run("COMMIT", (err) => {
+                  if (err) reject(err);
+                  else resolve();
+                });
+              }
+            }
+          );
+        });
+      });
+    });
+
+    res.json({ status: STATUS.SUCCESS, message: "Priorities updated" });
+  } catch (error) {
+    console.error("Error reordering rules:", error);
+    res
+      .status(500)
+      .json({ status: STATUS.FAILURE, message: "Internal server error" });
+  }
+});
+
 // Endpoint 10: Get Dashboard Stats
 app.get("/api/dashboard/stats", async (req, res) => {
   const { merchantApiKey, timePeriod = "all" } = req.query;
