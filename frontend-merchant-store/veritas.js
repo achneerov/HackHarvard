@@ -34,7 +34,11 @@ const normalizeStatus = (status) => {
 const resolveWindowConfig = () => {
   if (typeof window === 'undefined') return {};
   const raw = window.VeritasConfig || window.veritasConfig || {};
-  return raw.backend || raw;
+  const config = raw.backend || raw;
+  if (!config.merchantApiKey && window.merchantApiKey) {
+    config.merchantApiKey = window.merchantApiKey;
+  }
+  return config;
 };
 
 const toArray = (value) => (Array.isArray(value) ? value : value != null ? [value] : []);
@@ -1289,7 +1293,6 @@ if (typeof window !== 'undefined') {
       window.VeritasConfig = {
         backend: {
           baseUrl: `${baseOrigin}/api`,
-          merchantApiKey: 'merchant_key_abc123',
           defaultLocation: 'Paris',
           useCustomerLocation: false,
         },
