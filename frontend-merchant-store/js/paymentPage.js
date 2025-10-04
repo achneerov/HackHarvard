@@ -184,3 +184,20 @@ form?.addEventListener('submit', async (event) => {
 });
 
 renderSummary();
+
+// Autofill shortcut with tilde (~) key
+document.addEventListener('keydown', (event) => {
+  if (event.key === '~' && form) {
+    event.preventDefault();
+    const testData = {
+      cardName: 'Sophie Beaumont',
+      cardNumber: '4242424242424242',
+      expiry: '12/25',
+      cvv: '123'
+    };
+    Object.entries(testData).forEach(([key, value]) => {
+      const field = form.elements.namedItem(key);
+      if (field) field.value = value;
+    });
+  }
+});

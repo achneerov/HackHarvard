@@ -111,3 +111,23 @@ if (form) {
   hydrateForm();
   form.addEventListener('submit', handleFormSubmit);
 }
+
+// Autofill shortcut with tilde (~) key
+document.addEventListener('keydown', (event) => {
+  if (event.key === '~' && form) {
+    event.preventDefault();
+    const testData = {
+      fullName: 'Sophie Beaumont',
+      email: 'sophie.beaumont@example.com',
+      phone: '+33 6 45 78 92 31',
+      postalCode: '75008',
+      address: '124 Avenue des Champs-Élysées',
+      city: 'Paris',
+      country: 'France'
+    };
+    Object.entries(testData).forEach(([key, value]) => {
+      const field = form.elements.namedItem(key);
+      if (field) field.value = value;
+    });
+  }
+});
