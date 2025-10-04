@@ -173,8 +173,8 @@ function Dashboard() {
                       <div className="font-semibold text-gray-900 text-sm">{location.location}</div>
                       <div className="text-xs text-gray-600">{location.transactions} transactions</div>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${location.flagged > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                      {location.flagged > 0 ? `${location.flagged} flagged` : '✓'}
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${location.flagged > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
+                      {location.flagged > 0 ? `${location.flagged} Auth Required` : '✓'}
                     </span>
                   </div>
                 ))}
