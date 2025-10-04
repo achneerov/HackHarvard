@@ -29,7 +29,7 @@ const STATUS = {
   FAILURE: 0,
   SUCCESS: 1,
   AUTH_REQUIRED: 2,
-  SIGN_IN_REQUIRED: 3
+  SIGN_UP_REQUIRED: 3
 };
 
 // Helper function to get enabled auth methods for a user
@@ -162,10 +162,10 @@ app.post('/api/processTransaction', async (req, res) => {
     });
 
     if (!user) {
-      await logMFAEvent(hashCC, amount, location, merchantApiKey, STATUS.SIGN_IN_REQUIRED);
+      await logMFAEvent(hashCC, amount, location, merchantApiKey, STATUS.SIGN_UP_REQUIRED);
       return res.json({
-        status: STATUS.SIGN_IN_REQUIRED,
-        message: 'User not found - sign in required'
+        status: STATUS.SIGN_UP_REQUIRED,
+        message: 'User not found - sign up required'
       });
     }
 
