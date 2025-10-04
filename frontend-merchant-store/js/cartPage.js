@@ -97,9 +97,24 @@ const handleFormSubmit = (event) => {
     alert('Your cart is empty. Please add items before proceeding.');
     return;
   }
+
+  // Check if a payment provider button was clicked
+  const paymentProvider = event.submitter?.dataset?.paymentProvider;
+
   const data = Object.fromEntries(new FormData(form).entries());
   saveCustomerDetails(data);
-  window.location.href = 'payment.html';
+
+  // Route to the appropriate payment page
+  if (paymentProvider === 'stripe') {
+    window.location.href = 'payment-stripe.html';
+  } else if (paymentProvider === 'paypal') {
+    window.location.href = 'payment-paypal.html';
+  } else if (paymentProvider === 'square') {
+    window.location.href = 'payment-square.html';
+  } else {
+    // Fallback to default payment page
+    window.location.href = 'payment.html';
+  }
 };
 
 if (cartItemsContainer) {
