@@ -41,7 +41,7 @@ All of this requires **minimal code changes** and can be integrated in **minutes
 
 ### Frontend
 
-- **Vanilla JavaScript** for lightweight, fast integration
+- **React** for the interactive merchant dashboard
 - **Device fingerprinting** via browser APIs
 - **Real-time analytics** dashboard for merchants
 - **Stripe, PayPal, Square** demo integrations
