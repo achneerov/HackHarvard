@@ -143,7 +143,6 @@ We're proud to have built:
 
 ## 📚 What We Learned
 
-- Deep dive into **payment processor APIs** (Stripe, PayPal, Square)
 - **Security best practices** for handling financial data with end-to-end encryption and hashing
 - The **economics of chargebacks** and their impact on SMBs
 - How to build **developer-friendly integrations** that don't disrupt existing workflows
