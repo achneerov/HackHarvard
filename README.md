@@ -103,9 +103,7 @@ Add Veritas to your checkout flow with **2 lines of code** in your checkout page
 
 ```html
 <script src="veritas.js"></script>
-<script>
-  merchantApiKey = "${your_merchant_key}";
-</script>
+<script>merchantApiKey = "${your_merchant_key}";</script>
 ```
 
 That's it! Veritas handles the rest.
